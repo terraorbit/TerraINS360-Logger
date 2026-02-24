@@ -356,4 +356,4 @@ All settings are persisted in `data/terrafusion_config.json` and survive restart
 
 ## License
 
-Proprietary — TerraOrbit Technologies. All rights reserved.
+Proprietary — TerraOrbit Mapping Pvt Ltd. All rights reserved.
