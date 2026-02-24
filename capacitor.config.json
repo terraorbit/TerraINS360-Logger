@@ -1,0 +1,22 @@
+{
+  "appId": "com.terrains360.logger",
+  "appName": "TerraINS360 Logger",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true,
+    "backgroundColor": "#0f172a",
+    "minSdkVersion": 24,
+    "targetSdkVersion": 34,
+    "buildToolsVersion": "34.0.0"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0f172a",
+      "showSpinner": true,
+      "spinnerColor": "#0ea5e9"
+    }
+  }
+}

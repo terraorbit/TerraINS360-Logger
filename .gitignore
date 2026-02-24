@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+
+# Data (user-specific config & survey data)
+data/
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+
+# APK builds (release artifacts)
+*.apk
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+build_log.txt
+build_release_log.txt
+
+# Generated icons
+android/app/src/main/res/mipmap-*/ic_launcher*.png
+android/app/src/main/res/drawable*/splash.png

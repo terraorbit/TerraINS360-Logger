@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0ea5e9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+<title>TerraINS360 Logger - GNSS Survey Data Logger</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%230f172a' stroke='%2306b6d4' stroke-width='2'/><circle cx='16' cy='16' r='5' fill='%2306b6d4'/><ellipse cx='16' cy='16' rx='14' ry='7' fill='none' stroke='%2306b6d4' stroke-width='1.5'/></svg>">
+<style>
+:root{
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#334155;--bg4:#475569;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --accent:#0ea5e9;--accent2:#0284c7;--accent3:#38bdf8;--green:#10b981;--green2:#059669;
+  --red:#ef4444;--red2:#dc2626;--orange:#f59e0b;--purple:#8b5cf6;--yellow:#eab308;--pink:#ec4899;
+  --border:#1e293b;--border2:#334155;--radius:8px;--radius2:12px;--radius3:16px;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;--mono:'Cascadia Code','Fira Code','SF Mono',monospace;
+  --shadow:0 4px 24px rgba(0,0,0,0.25);--shadow2:0 2px 8px rgba(0,0,0,0.2);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px}
+body{display:flex;flex-direction:column}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(14,165,233,0.4)}70%{box-shadow:0 0 0 10px rgba(14,165,233,0)}100%{box-shadow:0 0 0 0 rgba(14,165,233,0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loginPage{position:fixed;inset:0;background:linear-gradient(135deg,#0c1222 0%,#0f172a 40%,#0c1929 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.6s}
+#loginPage.fade{opacity:0;pointer-events:none}
+.login-logo{width:100px;height:100px;margin-bottom:16px;animation:float 6s ease-in-out infinite}
+.login-title{font-size:2.2em;font-weight:800;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
+.login-sub{font-size:0.9em;color:var(--text2);margin-top:4px}
+.login-india{font-size:0.78em;color:var(--orange);margin-top:6px;font-weight:600;display:flex;align-items:center;gap:6px}
+.login-card{margin-top:28px;width:min(360px,90vw);background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius2);padding:28px;box-shadow:var(--shadow)}
+.login-card h3{font-size:0.9em;color:var(--text);margin-bottom:16px;text-align:center}
+.login-field{margin-bottom:14px}
+.login-field label{font-size:0.72em;color:var(--text3);display:block;margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+.login-field input{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:var(--radius);font-size:0.9em;font-family:var(--font);transition:border-color 0.2s}
+.login-field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,165,233,0.1)}
+.login-btn{width:100%;margin-top:6px;padding:12px;background:linear-gradient(135deg,var(--accent),var(--purple));border:none;color:#fff;font-weight:700;font-size:0.95em;border-radius:var(--radius);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;font-family:var(--font)}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(14,165,233,0.3)}
+.login-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.login-error{color:var(--red);font-size:0.78em;text-align:center;margin-top:10px;min-height:18px}
+.login-ver{margin-top:20px;font-size:0.65em;color:var(--text3)}
+.login-offline{margin-top:8px;font-size:0.7em;color:var(--orange);text-align:center;display:none}
+.top-bar{display:flex;align-items:center;gap:8px;padding:0 12px;height:36px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100}
+.top-logo{display:flex;align-items:center;gap:6px}
+.top-logo svg{width:22px;height:22px}
+.brand{font-weight:800;font-size:0.85em;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ver{font-size:0.58em;color:var(--text3);margin-left:2px;font-weight:600}
+.status-sep{width:1px;height:18px;background:var(--border2)}
+.status-seg{display:flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:0.72em;font-weight:600;color:var(--text3);transition:all 0.2s}
+.status-seg .sdot{width:6px;height:6px;border-radius:50%;background:var(--text3);transition:background 0.3s}
+.status-seg.active{color:var(--green)}.status-seg.active .sdot{background:var(--green)}
+.status-seg.warn{color:var(--orange)}.status-seg.warn .sdot{background:var(--orange)}
+.status-seg.rec{color:var(--red)}.status-seg.rec .sdot{background:var(--red);animation:blink 0.8s infinite}
+.status-seg.stale{color:var(--orange)}.status-seg.stale .sdot{background:var(--orange);animation:blink 1.5s infinite}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.top-user{font-size:0.72em;color:var(--text2);font-weight:500;display:flex;align-items:center;gap:4px;cursor:pointer;padding:2px 6px;border-radius:4px}
+.top-user:hover{background:var(--bg3)}
+.top-user .role-dot{width:5px;height:5px;border-radius:50%;background:var(--purple)}
+.top-clock{font-size:0.72em;color:var(--text3);font-family:var(--mono)}
+.bottom-bar{display:flex;align-items:center;gap:6px;padding:0 12px;height:26px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;font-size:0.68em;color:var(--text3)}
+.bb-item{display:flex;align-items:center;gap:3px}.bb-val{font-weight:600;color:var(--text2)}.bb-sep{width:1px;height:12px;background:var(--border2)}
+.bb-fill{flex:1}.ic{font-size:0.85em;opacity:0.6}
+.bb-sync{display:flex;align-items:center;gap:3px;cursor:pointer;padding:1px 6px;border-radius:4px}
+.bb-sync:hover{background:var(--bg3)}
+.bb-sync.syncing{color:var(--accent)}.bb-sync.offline{color:var(--orange)}.bb-sync.error{color:var(--red)}
+.main-wrap{display:flex;flex:1;overflow:hidden}
+.sidebar{width:52px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;flex-shrink:0}
+.nav-btn{width:40px;height:40px;border:none;background:transparent;color:var(--text3);cursor:pointer;border-radius:var(--radius);font-size:1.1em;display:flex;align-items:center;justify-content:center;transition:all 0.15s;position:relative;flex-direction:column}
+.nav-btn:hover{background:var(--bg3);color:var(--text)}.nav-btn.active{background:rgba(14,165,233,0.1);color:var(--accent)}
+.nav-label{font-size:0.42em;font-weight:600;margin-top:1px;letter-spacing:0.2px}
+.nav-btn .admin-dot{position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:var(--purple)}
+.content-area{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.content-scroll{flex:1;overflow-y:auto;padding:12px 16px 16px}
+.tab-page{display:none}.tab-page.active{display:block}
+.content-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.content-title{font-size:1.05em;font-weight:800;display:flex;align-items:center;gap:6px}.ct-icon{font-size:1.1em}
+.content-desc{font-size:0.72em;color:var(--text3);margin-top:2px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;margin-bottom:12px;transition:border-color 0.2s}
+.card:hover{border-color:var(--border2)}
+.card-h{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(51,65,85,0.3)}
+.card-h h3{font-size:0.8em;font-weight:700;display:flex;align-items:center;gap:5px}
+.card-h .ch-icon{font-size:0.9em;opacity:0.7}
+.card-b{padding:12px 14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+
+/* ── MOBILE / PHONE ── */
+@media(max-width:640px){
+  /* Safe area for notch / status bar */
+  body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+  /* Top bar: compact, wrap nicely */
+  .top-bar{height:auto;min-height:32px;padding:4px 8px;flex-wrap:wrap;gap:4px}
+  .top-logo svg{width:18px;height:18px}
+  .brand{font-size:0.72em}
+  .ver{font-size:0.5em}
+  .status-seg{padding:1px 5px;font-size:0.64em}
+  .status-sep{height:14px}
+  .top-right{gap:6px}
+  .top-user{font-size:0.64em;padding:1px 4px}
+  .top-clock{font-size:0.64em}
+  .top-logo + .status-sep{display:none}
+
+  /* Sidebar → bottom tab bar */
+  .main-wrap{flex-direction:column-reverse}
+  .sidebar{
+    width:100%;height:48px;flex-direction:row;
+    border-right:none;border-top:1px solid var(--border);
+    padding:0 4px;gap:0;justify-content:space-around;
+    position:fixed;bottom:0;left:0;right:0;z-index:200;
+    padding-bottom:env(safe-area-inset-bottom);
+    background:var(--bg2);
+  }
+  .nav-btn{width:auto;height:auto;padding:4px 6px;flex:1;max-width:64px;font-size:0.95em}
+  .nav-label{font-size:0.5em;display:block}
+  .nav-btn .admin-dot{top:2px;right:8px}
+
+  /* Content: account for bottom tab bar */
+  .content-area{padding-bottom:52px}
+  .content-scroll{padding:8px 10px 60px}
+
+  /* Bottom status bar: scrollable, thinner */
+  .bottom-bar{height:auto;min-height:22px;padding:2px 6px;flex-wrap:nowrap;overflow-x:auto;gap:4px;font-size:0.6em;
+    margin-bottom:52px; /* above tab bar */
+  }
+  .bb-item{white-space:nowrap;flex-shrink:0}
+  .bb-sep{height:10px;flex-shrink:0}
+
+  /* Cards: tighter padding */
+  .card-h{padding:8px 10px}
+  .card-b{padding:8px 10px}
+  .card-h h3{font-size:0.76em}
+
+  /* Data grid: smaller font */
+  .dv{font-size:0.82em}
+  .dl{font-size:0.6em}
+
+  /* Form rows: stack on very small */
+  .fr{flex-wrap:wrap}
+  .fr label{min-width:70px;font-size:0.7em}
+  .fr input,.fr select{font-size:0.8em;padding:8px 10px}
+
+  /* Workflow bar */
+  .wf-bar{height:26px}
+  .wf-dot{font-size:0.6em}
+  .wf-dot .wf-n{font-size:1em}
+
+  /* Stats boxes */
+  .stats-row{grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px}
+  .sbox{padding:6px 4px}
+  .sbox-l{font-size:0.55em}
+  .sbox-v{font-size:0.85em}
+
+  /* Buttons: bigger touch target */
+  .btn{padding:8px 14px;font-size:0.78em}
+  .btn-lg{padding:12px 20px;font-size:0.95em}
+
+  /* Fix strip */
+  .fix-strip{font-size:0.78em;padding:5px}
+
+  /* Survey control card wider */
+  #surveyCard .fr label{min-width:60px}
+
+  /* Inner tabs */
+  .itab{padding:6px 10px;font-size:0.7em}
+
+  /* Lever arm vis smaller */
+  .lever-vis{width:55px!important;height:55px!important}
+
+  /* Modal full-width on mobile */
+  .modal{width:95vw;max-height:90vh}
+  .modal-h{padding:12px 14px}
+  .modal-b{padding:14px}
+
+  /* Map modal */
+  .map-controls{padding:6px 10px}
+  .map-info{font-size:0.65em;gap:8px}
+
+  /* Content header */
+  .content-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .content-title{font-size:0.95em}
+
+  /* Tracks list */
+  .track-item{padding:8px 10px}
+  .track-name{font-size:0.78em}
+  .track-meta{font-size:0.62em}
+
+  /* Project cards */
+  .pcard{padding:8px 10px}
+  .pcard .pn{font-size:0.8em}
+  .pcard .pm{font-size:0.62em}
+
+  /* Tables */
+  .user-table{font-size:0.7em}
+  .user-table th,.user-table td{padding:6px 8px}
+
+  /* Section headers */
+  .section-h{font-size:0.76em}
+
+  /* RTK data readouts */
+  .dg{gap:2px 8px}
+}
+.fr{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.fr label{min-width:95px;font-size:0.74em;color:var(--text2);font-weight:500}
+.fr input,.fr select,.fr textarea{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:0.82em;font-family:var(--font);transition:border-color 0.2s}
+.fr textarea{min-height:36px;resize:vertical}
+.fr input:focus,.fr select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(14,165,233,0.1)}
+.btn{padding:6px 12px;border:none;border-radius:var(--radius);font-size:0.76em;font-weight:600;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:4px;font-family:var(--font)}
+.btn:disabled{opacity:0.35;cursor:not-allowed}
+.btn-p{background:var(--accent);color:#fff}.btn-p:hover:not(:disabled){background:var(--accent3);box-shadow:0 2px 8px rgba(14,165,233,0.25)}
+.btn-s{background:var(--green);color:#fff}.btn-s:hover:not(:disabled){background:var(--green2)}
+.btn-d{background:var(--red);color:#fff}.btn-d:hover:not(:disabled){background:var(--red2)}
+.btn-o{background:transparent;border:1px solid var(--border2);color:var(--text2)}.btn-o:hover:not(:disabled){background:var(--bg3);color:var(--text);border-color:var(--accent)}
+.btn-w{background:var(--orange);color:#fff}
+.btn-lg{padding:10px 24px;font-size:0.92em;border-radius:var(--radius2)}
+.btn-sm{padding:4px 8px;font-size:0.7em}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.badge{font-size:0.68em;padding:2px 8px;border-radius:10px;font-weight:600;letter-spacing:0.3px}
+.badge-g{background:rgba(16,185,129,0.15);color:var(--green)}
+.badge-r{background:rgba(239,68,68,0.15);color:var(--red)}
+.badge-b{background:rgba(14,165,233,0.15);color:var(--accent)}
+.badge-o{background:rgba(245,158,11,0.15);color:var(--orange)}
+.badge-p{background:rgba(139,92,246,0.15);color:var(--purple)}
+.badge-d{background:var(--bg);color:var(--text3)}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+.di{padding:4px 0}.dl{font-size:0.65em;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:500}
+.dv{font-size:0.9em;font-weight:600;font-family:var(--mono);margin-top:1px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:12px}
+.sbox{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px 6px;text-align:center;transition:border-color 0.2s}
+.sbox:hover{border-color:var(--border2)}
+.sbox-l{font-size:0.6em;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px}
+.sbox-v{font-size:1em;font-weight:700;font-family:var(--mono);margin-top:2px}
+.fix-strip{text-align:center;padding:6px;font-weight:800;font-size:0.9em;border-radius:var(--radius);border:1px solid var(--border);letter-spacing:2px;margin-bottom:12px}
+.pbar{height:4px;background:var(--bg);border-radius:2px;overflow:hidden;margin-top:3px}
+.pfill{height:100%;border-radius:2px;transition:width 0.5s ease}
+.chart-c{display:flex;align-items:flex-end;gap:1px;height:50px;overflow:hidden;background:var(--bg);border-radius:var(--radius);padding:4px}
+.chart-bar{flex:1;min-width:1.5px;border-radius:1px 1px 0 0;transition:height 0.2s}
+.vcard{border:2px solid var(--border);border-radius:var(--radius);padding:8px;cursor:pointer;transition:all 0.15s;background:var(--bg)}
+.vcard:hover{border-color:var(--accent);transform:translateY(-1px)}
+.vcard.sel{border-color:var(--green);background:rgba(16,185,129,0.05)}
+.vcard .vn{font-weight:700;font-size:0.82em}.vcard .vt{font-size:0.65em;color:var(--text3);margin-top:1px}
+.pcard{border:2px solid var(--border);border-radius:var(--radius);padding:10px 12px;cursor:pointer;transition:all 0.15s;background:var(--bg);margin-bottom:8px}
+.pcard:hover{border-color:var(--accent);background:var(--bg2)}
+.pcard.sel{border-color:var(--accent);background:rgba(14,165,233,0.05)}
+.pcard .pn{font-weight:700;font-size:0.85em;display:flex;justify-content:space-between;align-items:center}
+.pcard .pm{font-size:0.68em;color:var(--text3);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap}
+.pcard .pm span{display:flex;align-items:center;gap:3px}
+.pcard .pd{display:none;align-items:center;gap:3px;margin-top:6px}
+.pcard:hover .pd,.pcard.sel .pd{display:flex}
+.pcard .p-tracks{margin-top:6px;font-size:0.7em;color:var(--text3);border-top:1px solid var(--border);padding-top:6px}
+.track-item{border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;background:var(--bg);cursor:pointer;transition:all 0.15s}
+.track-item:hover{background:var(--bg3);border-color:var(--border2);transform:translateX(2px)}
+.track-head{display:flex;align-items:center;justify-content:space-between}
+.track-name{font-weight:700;font-size:0.82em;display:flex;align-items:center;gap:5px}
+.track-meta{font-size:0.68em;color:var(--text3);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+.track-meta span{display:flex;align-items:center;gap:3px}
+.vgrp{margin-bottom:14px}
+.vgrp-hdr{font-size:0.82em;font-weight:700;color:var(--text2);padding:6px 0;border-bottom:1px solid var(--border);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(51,65,85,0.5);font-size:0.78em}
+.srow:last-child{border-bottom:none}.srow-v{font-weight:600}
+.inner-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:2px solid var(--border);padding-bottom:0}
+.itab{padding:6px 14px;font-size:0.76em;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s;font-weight:500}
+.itab:hover{color:var(--text)}.itab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.isub{display:none}.isub.active{display:block}
+.wf-bar{display:flex;align-items:center;gap:0;margin-bottom:14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;height:30px}
+.wf-dot{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;height:100%;font-size:0.68em;font-weight:600;color:var(--text3);position:relative;transition:all 0.2s}
+.wf-dot:not(:last-child){border-right:1px solid var(--border)}
+.wf-dot .wf-n{font-weight:800;font-size:1.1em;opacity:0.5}
+.wf-dot.wf-done{background:rgba(16,185,129,0.08);color:var(--green)}.wf-dot.wf-done .wf-n{opacity:1;color:var(--green)}
+.wf-dot.wf-active{background:rgba(14,165,233,0.08);color:var(--accent)}.wf-dot.wf-active .wf-n{opacity:1;color:var(--accent)}
+.user-table{width:100%;border-collapse:collapse;font-size:0.78em}
+.user-table th{text-align:left;padding:8px 10px;background:var(--bg);color:var(--text3);font-weight:600;font-size:0.72em;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)}
+.user-table td{padding:8px 10px;border-bottom:1px solid rgba(51,65,85,0.3)}
+.user-table tr:hover td{background:rgba(14,165,233,0.03)}
+.user-active{color:var(--green)}.user-inactive{color:var(--red)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius2);width:min(440px,92vw);max-height:85vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal-h{padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700;font-size:0.9em;display:flex;justify-content:space-between;align-items:center}
+.modal-h .close-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:1.3em;transition:color 0.15s}
+.modal-h .close-btn:hover{color:var(--text)}
+.modal-b{padding:18px}
+.section-h{font-size:0.8em;font-weight:700;color:var(--text);margin:12px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px}
+.rec-pulse{display:inline-flex;align-items:center;gap:5px;color:var(--red);font-weight:700}
+.rec-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:blink 0.8s infinite}
+.empty-state{text-align:center;padding:28px;color:var(--text3)}.empty-state .es-icon{font-size:2.2em;margin-bottom:8px;opacity:0.3}.empty-state p{font-size:0.82em}
+.lever-vis{width:80px;height:80px;background:var(--bg);border:1px solid var(--border);border-radius:50%;position:relative;flex-shrink:0}
+.lever-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:var(--accent);border:2px solid var(--bg2);z-index:2}
+.lever-offset{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:var(--red);border:2px solid var(--bg2);z-index:3;transition:all 0.3s}
+.lever-labels{position:absolute;inset:0;pointer-events:none;font-size:0.45em;color:var(--text3)}
+.lever-labels span{position:absolute}.lever-labels .lbl-n{top:2px;left:50%;transform:translateX(-50%)}.lever-labels .lbl-s{bottom:2px;left:50%;transform:translateX(-50%)}.lever-labels .lbl-e{right:3px;top:50%;transform:translateY(-50%)}.lever-labels .lbl-w{left:3px;top:50%;transform:translateY(-50%)}
+.offline-banner{display:none;background:var(--orange);color:#000;text-align:center;padding:3px;font-size:0.72em;font-weight:700}
+.offline-banner.show{display:block}
+.dev-select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--radius);font-size:0.78em;font-family:var(--font);cursor:pointer;min-width:160px}
+.dev-select:focus{outline:none;border-color:var(--accent)}
+.map-modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600;display:none;flex-direction:column;backdrop-filter:blur(4px)}
+.map-modal.show{display:flex}
+.map-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.map-hdr h3{font-size:0.9em;font-weight:700;display:flex;align-items:center;gap:6px}
+.map-body{flex:1;position:relative}
+#trackMap{width:100%;height:100%}
+.map-controls{position:absolute;bottom:0;left:0;right:0;background:rgba(15,23,42,0.92);padding:10px 16px;z-index:1000;border-top:1px solid var(--border)}
+.map-slider{width:100%;accent-color:var(--accent);margin:4px 0}
+.map-info{display:flex;gap:16px;font-size:0.72em;color:var(--text2);flex-wrap:wrap}
+.map-info span{display:flex;align-items:center;gap:3px}
+.map-info b{color:var(--text);font-family:var(--mono)}
+.proj-exp-group{margin-bottom:12px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.proj-exp-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(51,65,85,0.3);cursor:pointer}
+.proj-exp-hdr:hover{background:rgba(51,65,85,0.5)}
+.proj-exp-body{padding:0 12px 8px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <svg class="login-logo" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="og" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0ea5e9"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient>
+      <linearGradient id="ig" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0ea5e9"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient>
+    </defs>
+    <circle cx="60" cy="60" r="52" fill="none" stroke="url(#og)" stroke-width="3" opacity="0.3"/>
+    <ellipse cx="60" cy="60" rx="52" ry="20" fill="none" stroke="url(#og)" stroke-width="2" opacity="0.5" transform="rotate(-20 60 60)"/>
+    <ellipse cx="60" cy="60" rx="52" ry="20" fill="none" stroke="url(#og)" stroke-width="2" opacity="0.3" transform="rotate(40 60 60)"/>
+    <circle cx="60" cy="60" r="18" fill="url(#ig)" opacity="0.9"/>
+    <circle cx="60" cy="60" r="5" fill="#fff"/>
+    <circle cx="30" cy="40" r="4" fill="#0ea5e9" opacity="0.6"/>
+    <circle cx="90" cy="45" r="3" fill="#8b5cf6" opacity="0.5"/>
+    <circle cx="50" cy="90" r="3.5" fill="#0ea5e9" opacity="0.6"/>
+  </svg>
+  <div class="login-title">TerraINS360 Logger</div>
+  <div class="login-sub">GNSS Survey Data Logger</div>
+  <div class="login-india">&#x1F1EE;&#x1F1F3; A Startup India Initiative</div>
+  <div class="login-card">
+    <h3>&#x1F4E1; Sign In</h3>
+    <input type="hidden" id="serverUrl" value="http://ins360.terraorbit.in">
+    <div id="serverStatus" style="font-size:0.72em;margin:-4px 0 8px;min-height:16px;text-align:center"></div>
+    <div class="login-field"><label>Username</label><input type="text" id="loginUser" placeholder="admin" autocomplete="username"></div>
+    <div class="login-field"><label>Password</label><input type="password" id="loginPass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="current-password"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In &#x2192;</button>
+    <div class="login-error" id="loginError"></div>
+    <div style="text-align:center;margin-top:10px;font-size:0.7em;color:var(--text3)">Forgot password? <span style="color:var(--accent)">Contact your administrator</span></div>
+    <div class="login-offline" id="loginOffline">&#x26A0; Offline mode</div>
+  </div>
+  <div style="margin-top:18px;text-align:center">
+    <div style="font-size:0.72em;color:var(--text2);font-weight:600">TerraOrbit Mapping Pvt Ltd</div>
+    <div style="font-size:0.58em;color:var(--text3);margin-top:2px">Designed &amp; Developed by TerraOrbit</div>
+    <div style="font-size:0.56em;margin-top:3px"><a href="https://www.terraorbit.in" target="_blank" style="color:var(--accent);text-decoration:none">www.terraorbit.in</a></div>
+    <div class="login-ver" style="margin-top:6px">v3.1 — GNSS + RTK + GeoParquet + S3 Cloud</div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="projModal">
+  <div class="modal">
+    <div class="modal-h"><span>&#x2795; New Project</span><button class="close-btn" onclick="closeProjModal()">&times;</button></div>
+    <div class="modal-b">
+      <div class="fr"><label>Project Name</label><input type="text" id="newProjName" placeholder="Road Asset Inventory 2026"></div>
+      <div class="fr"><label>Operator</label><input type="text" id="newProjOp" placeholder="Survey Engineer"></div>
+      <div class="fr"><label>Client</label><input type="text" id="newProjClient" placeholder="Municipal Corporation"></div>
+      <div class="fr"><label>Location</label><input type="text" id="newProjLoc" placeholder="Hyderabad, Telangana"></div>
+      <div class="fr"><label>Description</label><textarea id="newProjDesc" placeholder="Project scope..."></textarea></div>
+      <div class="btns"><button class="btn btn-s" onclick="createProject()">&#x1F4C1; Create</button><button class="btn btn-o" onclick="closeProjModal()">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+    <div class="modal-h"><span id="userModalTitle">&#x2795; New User</span><button class="close-btn" onclick="closeUserModal()">&times;</button></div>
+    <div class="modal-b">
+      <div class="fr"><label>Username</label><input type="text" id="muUsername" placeholder="surveyor1"></div>
+      <div class="fr"><label>Display Name</label><input type="text" id="muDisplayName" placeholder="John Doe"></div>
+      <div class="fr"><label>Email</label><input type="email" id="muEmail" placeholder="john@company.com"></div>
+      <div class="fr" id="muPassRow"><label>Password</label><input type="password" id="muPassword" placeholder="Min 6 characters"></div>
+      <div class="btns"><button class="btn btn-s" id="muSaveBtn" onclick="saveUser()">Create User</button><button class="btn btn-o" onclick="closeUserModal()">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- TRACK MAP MODAL -->
+<div class="map-modal" id="mapModal">
+  <div class="map-hdr">
+    <h3>&#x1F5FA;&#xFE0F; <span id="mapTrackName">Track</span></h3>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span id="mapTrackInfo" style="font-size:0.72em;color:var(--text3)"></span>
+      <button class="btn btn-o btn-sm" onclick="closeMapModal()">&times; Close</button>
+    </div>
+  </div>
+  <div class="map-body">
+    <div id="trackMap"></div>
+    <div class="map-controls">
+      <input type="range" class="map-slider" id="mapSlider" min="0" max="100" value="0" oninput="onMapSlider(this.value)">
+      <div class="map-info">
+        <span>Point: <b id="mapPtIdx">0</b> / <b id="mapPtTotal">0</b></span>
+        <span>Lat: <b id="mapPtLat">--</b></span>
+        <span>Lon: <b id="mapPtLon">--</b></span>
+        <span>Alt: <b id="mapPtAlt">--</b></span>
+        <span>Fix: <b id="mapPtFix">--</b></span>
+        <span>Time: <b id="mapPtTime">--</b></span>
+        <span>Speed: <b id="mapPtSpeed">--</b></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="offline-banner" id="offlineBanner">&#x26A0; OFFLINE — Changes will sync when connection returns</div>
+
+<!-- TOP BAR -->
+<div class="top-bar" id="topbar" style="display:none">
+  <div class="top-logo">
+    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13" fill="none" stroke="#0ea5e9" stroke-width="2.5"/><ellipse cx="16" cy="16" rx="13" ry="6" fill="none" stroke="#0ea5e9" stroke-width="1.5" transform="rotate(-25 16 16)"/><circle cx="16" cy="16" r="4" fill="#0ea5e9"/></svg>
+    <span class="brand">TerraINS360 Logger</span><span class="ver">v3.1</span>
+  </div>
+  <div class="status-sep"></div>
+  <div class="status-seg" id="sb_gnss" title="GNSS"><span class="sdot"></span><span id="sb_gnss_fix">GNSS</span><span id="sb_gnss_sats" style="font-family:var(--mono)"></span></div>
+  <div class="status-seg" id="sb_ntrip" title="NTRIP"><span class="sdot"></span><span id="sb_ntrip_lbl">NTRIP</span></div>
+  <div class="status-seg" id="sb_rec" title="Recording"><span class="sdot"></span><span id="sb_rec_lbl">IDLE</span></div>
+  <div class="status-sep"></div>
+  <div style="font-family:var(--mono);font-size:0.68em;color:var(--text3);display:flex;gap:6px"><span id="sb_lat">--</span><span id="sb_lon">--</span></div>
+  <div class="top-right">
+    <div class="top-user" id="topUser" title="User profile"><span class="role-dot"></span><span id="topUserName">--</span></div>
+    <div class="top-clock" id="topClock">--:--:--</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main-wrap" id="mainWrap" style="display:none">
+  <div class="sidebar">
+    <button class="nav-btn active" onclick="goTab('dashboard')" id="nav_dashboard" title="Dashboard">&#x1F4CA;<span class="nav-label">Dash</span></button>
+    <button class="nav-btn" onclick="goTab('projects')" id="nav_projects" title="Projects">&#x1F4C1;<span class="nav-label">Projects</span></button>
+    <button class="nav-btn" onclick="goTab('gnss')" id="nav_gnss" title="GNSS">&#x1F4E1;<span class="nav-label">GNSS</span></button>
+    <button class="nav-btn" onclick="goTab('tracks')" id="nav_tracks" title="Tracks">&#x1F4C2;<span class="nav-label">Tracks</span></button>
+    <div style="flex:1"></div>
+    <button class="nav-btn" onclick="goTab('admin')" id="nav_admin" title="Admin" style="display:none">&#x1F6E1;&#xFE0F;<span class="nav-label">Admin</span><span class="admin-dot"></span></button>
+    <button class="nav-btn" onclick="doLogout()" id="nav_logout" title="Logout" style="color:var(--text3)">&#x23FB;<span class="nav-label">Logout</span></button>
+  </div>
+
+  <div class="content-area">
+
+<!-- ═══ DASHBOARD ═══ -->
+<div class="content-scroll tab-page active" id="page_dashboard">
+  <div class="wf-bar">
+    <div class="wf-dot" id="wf1"><span class="wf-n">1</span>Project</div>
+    <div class="wf-dot" id="wf2"><span class="wf-n">2</span>GNSS</div>
+    <div class="wf-dot" id="wf3"><span class="wf-n">3</span>Survey</div>
+    <div class="wf-dot" id="wf4"><span class="wf-n">4</span>Export</div>
+  </div>
+  <div class="g2">
+    <div>
+      <!-- Survey Control -->
+      <div class="card" id="surveyCard">
+        <div class="card-h"><h3><span class="ch-icon">&#x23FA;</span> Survey Control</h3><span id="surveyBadge" class="badge badge-d">Idle</span></div>
+        <div class="card-b">
+          <div id="surveyIdle">
+            <div class="fr"><label>Project</label>
+              <select id="surveyProject" style="flex:1"></select>
+            </div>
+            <div class="fr"><label>Vehicle</label>
+              <select id="surveyVehicle" style="flex:1"></select>
+            </div>
+            <div class="fr"><label>Track Name</label><input type="text" id="trackName" placeholder="Auto-generated if blank"></div>
+            <div class="fr"><label>Rate (Hz)</label><select id="logHz"><option value="1">1 Hz</option><option value="2">2 Hz</option><option value="5" selected>5 Hz</option><option value="10">10 Hz</option><option value="20">20 Hz</option></select></div>
+            <div class="fr"><label>Format</label><select id="logFmt"><option value="nmea">NMEA</option><option value="csv">CSV</option><option value="both" selected>Both</option></select></div>
+            <div class="fr"><label>Prefix</label><input type="text" id="logPfx" value="TI" style="max-width:80px"></div>
+            <button class="btn btn-s btn-lg" onclick="startSurvey()" id="startBtn" style="width:100%">&#x25B6; START SURVEY</button>
+            <div style="font-size:0.68em;color:var(--text3);margin-top:8px;text-align:center">Select project &amp; vehicle, connect GNSS, then start</div>
+          </div>
+          <div id="surveyRec" style="display:none">
+            <div class="rec-pulse" style="font-size:1.05em;margin-bottom:12px;justify-content:center"><span class="rec-dot"></span> RECORDING</div>
+            <div class="dg" style="margin-bottom:12px">
+              <div class="di"><div class="dl">Track</div><div class="dv" id="recTrack">--</div></div>
+              <div class="di"><div class="dl">Duration</div><div class="dv" id="recDur">0s</div></div>
+              <div class="di"><div class="dl">Records</div><div class="dv" id="recCnt">0</div></div>
+              <div class="di"><div class="dl">Rate</div><div class="dv" id="recHz">5 Hz</div></div>
+              <div class="di"><div class="dl">Project</div><div class="dv" id="recProj">--</div></div>
+              <div class="di"><div class="dl">Vehicle</div><div class="dv" id="recVeh">--</div></div>
+            </div>
+            <button class="btn btn-d btn-lg" onclick="stopSurvey()" style="width:100%">&#x25A0; STOP SURVEY</button>
+          </div>
+        </div>
+      </div>
+      <!-- Live Position -->
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F4CD;</span> Live Position</h3></div>
+        <div class="card-b">
+          <div class="fix-strip" id="fixBanner2" style="font-size:0.82em;margin-bottom:8px">--</div>
+          <div class="dg">
+            <div class="di"><div class="dl">Latitude</div><div class="dv" id="sLat">--</div></div>
+            <div class="di"><div class="dl">Longitude</div><div class="dv" id="sLon">--</div></div>
+            <div class="di"><div class="dl">H. Precision</div><div class="dv" id="sHPr">--</div></div>
+            <div class="di"><div class="dl">V. Precision</div><div class="dv" id="sVPr">--</div></div>
+            <div class="di"><div class="dl">Speed</div><div class="dv" id="sSpd">-- km/h</div></div>
+            <div class="di"><div class="dl">Heading</div><div class="dv" id="sHdg">--</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <!-- Active Config -->
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x2699;&#xFE0F;</span> Active Configuration</h3></div>
+        <div class="card-b">
+          <div class="dg">
+            <div class="di"><div class="dl">Project</div><div class="dv" id="svProj">--</div></div>
+            <div class="di"><div class="dl">Vehicle</div><div class="dv" id="svVeh">--</div></div>
+            <div class="di"><div class="dl">Inst. Height</div><div class="dv" id="svIH">-- m</div></div>
+            <div class="di"><div class="dl">Lever Arm</div><div class="dv" id="svLA">--</div></div>
+          </div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+            <div class="lever-vis" style="width:65px;height:65px">
+              <div class="lever-center"></div><div class="lever-offset" id="laOff2"></div>
+              <div class="lever-labels"><span class="lbl-n">F</span><span class="lbl-s">B</span><span class="lbl-e">R</span><span class="lbl-w">L</span></div>
+            </div>
+            <div style="font-size:0.7em;color:var(--text3)" id="laDesc2">--</div>
+          </div>
+        </div>
+      </div>
+      <!-- Cloud Sync -->
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x2601;&#xFE0F;</span> Cloud Sync</h3><span class="badge badge-d" id="cloudBadge">OFF</span></div>
+        <div class="card-b">
+          <div class="dg">
+            <div class="di"><div class="dl">Status</div><div class="dv" id="cloudStatus">Not configured</div></div>
+            <div class="di"><div class="dl">Queue</div><div class="dv" id="cloudQueue">0 items</div></div>
+            <div class="di"><div class="dl">Unsynced Tracks</div><div class="dv" id="cloudUnsynced" style="color:var(--orange)">0</div></div>
+            <div class="di"><div class="dl">Uploads</div><div class="dv" id="cloudUploads">0</div></div>
+            <div class="di"><div class="dl">Last Sync</div><div class="dv" id="cloudLast">--</div></div>
+            <div class="di"><div class="dl">Synced Tracks</div><div class="dv" id="cloudSyncedTracks" style="color:var(--green)">0</div></div>
+          </div>
+          <div class="btns" style="margin-top:8px">
+            <button class="btn btn-p btn-sm" id="syncAllDashBtn" onclick="syncAllTracks()">&#x2601;&#xFE0F; Sync All Tracks</button>
+          </div>
+          <div id="syncProgress" style="display:none;margin-top:8px;font-size:0.72em;color:var(--accent)">
+            <span>&#x1F504; Syncing...</span>
+          </div>
+        </div>
+      </div>
+      <!-- About -->
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x2139;&#xFE0F;</span> TerraINS360 Logger</h3></div>
+        <div class="card-b" style="font-size:0.74em;color:var(--text2)">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="font-weight:800;font-size:1.05em;color:var(--text)">v3.1</span>
+            <span class="badge badge-o">&#x1F1EE;&#x1F1F3; India</span>
+          </div>
+          GNSS + RTK + GeoParquet + S3 Cloud + RBAC + PWA<br>
+          <span style="color:var(--text3);font-size:0.9em">IMU integration: next version</span>
+          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+            <div style="font-weight:700;color:var(--text);font-size:0.95em">TerraOrbit Mapping Pvt Ltd</div>
+            <div style="font-size:0.85em;color:var(--text3);margin-top:2px">Designed &amp; Developed by TerraOrbit</div>
+            <div style="font-size:0.82em;margin-top:3px"><a href="https://www.terraorbit.in" target="_blank" style="color:var(--accent);text-decoration:none">www.terraorbit.in</a></div>
+            <div style="font-size:0.8em;color:var(--text3);margin-top:1px">&#x1F1EE;&#x1F1F3; A Startup India Initiative</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PROJECTS ═══ -->
+<div class="content-scroll tab-page" id="page_projects">
+  <div class="content-header">
+    <div><div class="content-title"><span class="ct-icon">&#x1F4C1;</span> Project Management</div>
+    <div class="content-desc">Create &amp; select projects. Each project contains multiple survey tracks.</div></div>
+    <button class="btn btn-p btn-sm" onclick="openProjModal()">+ New Project</button>
+  </div>
+  <div class="stats-row">
+    <div class="sbox"><div class="sbox-l">Projects</div><div class="sbox-v" id="projCount">0</div></div>
+    <div class="sbox"><div class="sbox-l">Active</div><div class="sbox-v" id="activeProjBadge">--</div></div>
+    <div class="sbox"><div class="sbox-l">Total Tracks</div><div class="sbox-v" id="projTotalTracks">0</div></div>
+  </div>
+  <div id="projectList">
+    <div class="empty-state" style="padding:20px"><div class="es-icon">&#x1F4C1;</div><p>No projects yet. Create your first project to start surveying.</p></div>
+  </div>
+</div>
+
+<!-- ═══ GNSS ═══ -->
+<div class="content-scroll tab-page" id="page_gnss">
+  <div class="content-header">
+    <div><div class="content-title"><span class="ct-icon">&#x1F4E1;</span> GNSS &amp; RTK Corrections</div>
+    <div class="content-desc">Connect to a GNSS receiver and configure RTK corrections</div></div>
+    <select class="dev-select" id="gnssDevSelect" onchange="onDeviceSelect(this.value)" title="Select GNSS Device"></select>
+  </div>
+
+  <div class="fix-strip" id="fixBanner">WAITING FOR DATA</div>
+
+  <div class="stats-row">
+    <div class="sbox"><div class="sbox-l">SVs</div><div class="sbox-v" id="sSats">--</div></div>
+    <div class="sbox"><div class="sbox-l">HDOP</div><div class="sbox-v" id="sHdop">--</div></div>
+    <div class="sbox"><div class="sbox-l">PDOP</div><div class="sbox-v" id="sPdop">--</div></div>
+    <div class="sbox"><div class="sbox-l">VDOP</div><div class="sbox-v" id="sVdop">--</div></div>
+    <div class="sbox"><div class="sbox-l">Speed</div><div class="sbox-v" id="sSpeed">--</div></div>
+    <div class="sbox"><div class="sbox-l">Course</div><div class="sbox-v" id="sCourse">--</div></div>
+  </div>
+
+  <div class="g2">
+    <div>
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F4CD;</span> Position</h3><span class="badge" id="fixBadge" style="color:var(--text3)">--</span></div>
+        <div class="card-b">
+          <div class="dg">
+            <div class="di"><div class="dl">Latitude</div><div class="dv" id="dLat">--</div></div>
+            <div class="di"><div class="dl">Longitude</div><div class="dv" id="dLon">--</div></div>
+            <div class="di"><div class="dl">Altitude (MSL)</div><div class="dv" id="dAlt">--</div></div>
+            <div class="di"><div class="dl">Geoid Sep</div><div class="dv" id="dGeoid">--</div></div>
+            <div class="di"><div class="dl">UTC Time</div><div class="dv" id="dTime">--</div></div>
+            <div class="di"><div class="dl">UTC Date</div><div class="dv" id="dDate">--</div></div>
+          </div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+            <div class="lever-vis">
+              <div class="lever-center"></div><div class="lever-offset" id="laOff"></div>
+              <div class="lever-labels"><span class="lbl-n">F</span><span class="lbl-s">B</span><span class="lbl-e">R</span><span class="lbl-w">L</span></div>
+            </div>
+            <div>
+              <div class="dl">Camera Position (Lever Arm)</div>
+              <div class="dg" style="margin-top:3px">
+                <div class="di"><div class="dl">Lat</div><div class="dv" id="camLat" style="font-size:0.78em">--</div></div>
+                <div class="di"><div class="dl">Lon</div><div class="dv" id="camLon" style="font-size:0.78em">--</div></div>
+                <div class="di"><div class="dl">Alt</div><div class="dv" id="camAlt" style="font-size:0.78em">--</div></div>
+                <div class="di"><div class="dl">H (GL)</div><div class="dv" id="camGL" style="font-size:0.78em">--</div></div>
+              </div>
+              <div style="font-size:0.68em;color:var(--text3);margin-top:3px" id="laDesc">--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F3AF;</span> Precision</h3></div>
+        <div class="card-b">
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:0.72em"><span>H: <b id="dHPrec">--</b></span><span id="hLabel" style="color:var(--text3)">--</span></div>
+            <div class="pbar"><div class="pfill" id="hBar" style="width:0"></div></div>
+          </div>
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:0.72em"><span>V: <b id="dVPrec">--</b></span><span id="vLabel" style="color:var(--text3)">--</span></div>
+            <div class="pbar"><div class="pfill" id="vBar" style="width:0"></div></div>
+          </div>
+          <div style="display:flex;gap:10px;font-size:0.72em;margin-top:6px"><span>Sigma-H: <b id="sHP">--</b></span><span>Sigma-V: <b id="sVP">--</b></span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F4E1;</span> Connection</h3><span style="font-size:0.68em;color:var(--text3)" id="updateCnt">0 upd</span></div>
+        <div class="card-b">
+          <div class="fr"><label>Host</label><input type="text" id="gnssHost" value="192.168.1.1"></div>
+          <div class="fr"><label>Port</label><input type="number" id="gnssPort" value="1212"></div>
+          <div class="fr"><label>Inst. Height</label><input type="number" step="0.001" id="instrH" value="2.000" style="max-width:90px"><button class="btn btn-p btn-sm" onclick="setInstrH()">Apply</button></div>
+          <div class="btns" style="margin-top:0"><button class="btn btn-s" onclick="gnssConnect()">&#x1F517; Connect</button><button class="btn btn-d" onclick="gnssDisconnect()">Disconnect</button></div>
+          <div class="section-h" style="margin-top:12px">&#x1F310; NTRIP RTK</div>
+          <div class="fr"><label>Host</label><input type="text" id="ntripHost" value="211.144.120.97"></div>
+          <div class="fr"><label>Port</label><input type="number" id="ntripPort" value="2201"></div>
+          <div class="fr"><label>Mountpoint</label><input type="text" id="ntripMount" value="4661139" placeholder="SG7 Serial Number"></div>
+          <div class="fr"><label>Username</label><input type="text" id="ntripUser" value="a"></div>
+          <div class="fr"><label>Password</label><input type="text" id="ntripPass" value="a"></div>
+          <div class="btns" style="margin-top:0"><button class="btn btn-s" onclick="ntripConnect()">&#x1F310; Connect</button><button class="btn btn-d" onclick="ntripDisconnect()">Disconnect</button><button class="btn btn-o" onclick="ntripMounts()">&#x1F4CB; Mounts</button></div>
+          <div style="font-size:0.68em;color:var(--text3);margin-top:4px" id="ntripStat"></div>
+          <div style="font-size:0.68em;color:var(--text3)" id="ntripBytes"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F4CA;</span> Fix History</h3></div>
+        <div class="card-b"><div class="chart-c" id="fixChart"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TRACKS ═══ -->
+<div class="content-scroll tab-page" id="page_tracks">
+  <div class="content-header">
+    <div><div class="content-title"><span class="ct-icon">&#x1F4C2;</span> Tracks &amp; Export</div>
+    <div class="content-desc">Browse tracks grouped by project. Export CSV/NMEA/GeoParquet, sync to cloud.</div></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <select class="dev-select" id="trackProjFilter" onchange="refreshTracks()" style="min-width:140px"><option value="">All Projects</option></select>
+      <button class="btn btn-p btn-sm" onclick="syncAllTracks()">&#x2601;&#xFE0F; Sync All</button>
+      <button class="btn btn-o btn-sm" onclick="refreshTracks()">&#x1F504; Refresh</button>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="sbox"><div class="sbox-l">Tracks</div><div class="sbox-v" id="tTotal">0</div></div>
+    <div class="sbox"><div class="sbox-l">Done</div><div class="sbox-v" id="tDone">0</div></div>
+    <div class="sbox"><div class="sbox-l">Rec</div><div class="sbox-v" id="tRec">0</div></div>
+    <div class="sbox"><div class="sbox-l">Synced</div><div class="sbox-v" id="tSynced" style="color:var(--green)">0</div></div>
+    <div class="sbox"><div class="sbox-l">Unsynced</div><div class="sbox-v" id="tUnsynced" style="color:var(--orange)">0</div></div>
+    <div class="sbox"><div class="sbox-l">Vehicles</div><div class="sbox-v" id="tVehs">0</div></div>
+  </div>
+  <div id="trackGroups">
+    <div class="empty-state"><div class="es-icon">&#x1F4C2;</div><p>No tracks recorded yet.</p></div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN ═══ -->
+<div class="content-scroll tab-page" id="page_admin">
+  <div class="content-header">
+    <div><div class="content-title"><span class="ct-icon">&#x1F6E1;&#xFE0F;</span> Admin Panel</div>
+    <div class="content-desc">User management, vehicles, GNSS devices, cloud config</div></div>
+    <span class="badge badge-p" id="adminRoleBadge">SuperAdmin</span>
+  </div>
+  <div class="inner-tabs">
+    <div class="itab active" onclick="adminSubTab(this,'users')">&#x1F465; Users</div>
+    <div class="itab" onclick="adminSubTab(this,'devices')">&#x1F4E1; GNSS</div>
+    <div class="itab" onclick="adminSubTab(this,'vehicles')">&#x1F698; Vehicles</div>
+    <div class="itab" onclick="adminSubTab(this,'allprojects')">&#x1F4C1; Projects &amp; Tracks</div>
+    <div class="itab" onclick="adminSubTab(this,'cloud')">&#x2601;&#xFE0F; Cloud S3</div>
+    <div class="itab" onclick="adminSubTab(this,'system')">&#x2699;&#xFE0F; System</div>
+  </div>
+
+  <!-- Users -->
+  <div class="isub active" id="admin_users">
+    <div class="card">
+      <div class="card-h"><h3><span class="ch-icon">&#x1F465;</span> User Management</h3><button class="btn btn-p btn-sm" onclick="openUserModal()">+ New User</button></div>
+      <div class="card-b" style="padding:0">
+        <table class="user-table">
+          <thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="userTableBody"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vehicles (Admin) -->
+  <div class="isub" id="admin_vehicles">
+    <div class="card">
+      <div class="card-h"><h3><span class="ch-icon">&#x1F698;</span> Vehicle Management</h3><button class="btn btn-p btn-sm" onclick="showVForm()">+ Add Vehicle</button></div>
+      <div class="card-b">
+        <div id="vehicleGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px"></div>
+        <div style="font-size:0.68em;color:var(--text3)">Select active vehicle. Lever arm &amp; instrument height are per-vehicle.</div>
+      </div>
+    </div>
+    <div class="card" id="vformCard" style="display:none">
+      <div class="card-h"><h3><span class="ch-icon">&#x2795;</span> <span id="vformTitle">Add Vehicle</span></h3></div>
+      <div class="card-b">
+        <div class="fr"><label>ID</label><input type="text" id="nVId" placeholder="van_1"></div>
+        <div class="fr"><label>Name</label><input type="text" id="nVName" placeholder="Survey Van"></div>
+        <div class="fr"><label>Type</label><select id="nVType"><option value="car">Car</option><option value="suv">SUV</option><option value="van">Van</option><option value="bike">Bike</option><option value="walk">Walking</option><option value="custom">Custom</option></select></div>
+        <div class="fr"><label>Inst. Height</label><input type="number" step="0.001" id="nVIH" value="2.000"></div>
+        <div class="fr"><label>Lever X</label><input type="number" step="0.001" id="nVLX" value="0.000"></div>
+        <div class="fr"><label>Lever Y</label><input type="number" step="0.001" id="nVLY" value="0.000"></div>
+        <div class="fr"><label>Lever Z</label><input type="number" step="0.001" id="nVLZ" value="0.000"></div>
+        <div class="btns"><button class="btn btn-s btn-sm" onclick="saveVehicle()">Save</button><button class="btn btn-d btn-sm" onclick="deleteSelVehicle()">Delete</button><button class="btn btn-o btn-sm" onclick="hideVForm()">Cancel</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GNSS Devices -->
+  <div class="isub" id="admin_devices">
+    <div class="card">
+      <div class="card-h"><h3><span class="ch-icon">&#x1F4E1;</span> GNSS Device Registry</h3><button class="btn btn-p btn-sm" onclick="addGNSSDevice()">+ Add Device</button></div>
+      <div class="card-b" id="deviceList"><div class="empty-state" style="padding:16px"><p>Loading devices...</p></div></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3><span class="ch-icon">&#x1F4CF;</span> Antenna &amp; Height Settings</h3></div>
+      <div class="card-b">
+        <div class="fr"><label>Antenna Phase Center</label><input type="number" step="0.001" id="antPhaseCenter" value="0.077" style="max-width:110px"><span style="font-size:0.72em;color:var(--text3)">m (default: 0.077)</span></div>
+        <div class="fr"><label>Instrument Height</label><input type="number" step="0.001" id="adminInstH" value="0.000" style="max-width:110px"><span style="font-size:0.72em;color:var(--text3)">m (to bottom of antenna mount)</span></div>
+        <div style="font-size:0.68em;color:var(--orange);margin:6px 0">&#x26A0; Instrument Height is measured from ground to the bottom of the antenna mount point. Antenna Phase Center offset (APC) is added automatically.</div>
+        <div class="btns"><button class="btn btn-s btn-sm" onclick="saveAntennaSettings()">&#x1F4BE; Save Antenna Settings</button></div>
+      </div>
+    </div>
+    <div class="card" id="deviceForm" style="display:none">
+      <div class="card-h"><h3><span class="ch-icon">&#x2795;</span> <span id="devFormTitle">Add Device</span></h3></div>
+      <div class="card-b">
+        <div class="fr"><label>Device ID</label><input type="text" id="devId" placeholder="sg7_001"></div>
+        <div class="fr"><label>Name</label><input type="text" id="devName" placeholder="GeoMate SG7"></div>
+        <div class="fr"><label>Model</label><input type="text" id="devModel" value="UM980"></div>
+        <div class="fr"><label>Host</label><input type="text" id="devHost" value="192.168.1.1"></div>
+        <div class="fr"><label>Port</label><input type="number" id="devPort" value="1212"></div>
+        <div class="fr"><label>Protocol</label><select id="devProto"><option value="TCP_NMEA">TCP NMEA</option><option value="SERIAL">Serial</option><option value="BLE">Bluetooth LE</option></select></div>
+        <div class="fr"><label>Set Active</label><select id="devActive"><option value="false">No</option><option value="true">Yes</option></select></div>
+        <div class="btns"><button class="btn btn-s" onclick="saveGNSSDevice()">Save Device</button><button class="btn btn-o" onclick="hideDevForm()">Cancel</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin: All Projects & Tracks -->
+  <div class="isub" id="admin_allprojects">
+    <div class="card">
+      <div class="card-h"><h3><span class="ch-icon">&#x1F4C1;</span> All Users' Projects &amp; Tracks</h3>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-p btn-sm" onclick="exportAllProjects('csv')">&#x1F4E5; Export All CSV</button>
+          <button class="btn btn-w btn-sm" onclick="exportAllProjects('kml')">&#x1F30D; Export All KML</button>
+          <button class="btn btn-o btn-sm" onclick="loadAdminAllProjects()">&#x1F504; Refresh</button>
+        </div>
+      </div>
+      <div class="card-b" id="adminAllProjList">
+        <div class="empty-state" style="padding:16px"><p>Loading projects...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cloud S3 -->
+  <div class="isub" id="admin_cloud">
+    <div class="g2">
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x2601;&#xFE0F;</span> AWS S3 Configuration</h3></div>
+        <div class="card-b">
+          <div class="fr"><label>Enabled</label><select id="cloudEnabled"><option value="false">No</option><option value="true">Yes</option></select></div>
+          <div class="fr"><label>Bucket</label><input type="text" id="cloudBucket" placeholder="my-survey-data"></div>
+          <div class="fr"><label>Region</label><input type="text" id="cloudRegion" value="ap-south-1"></div>
+          <div class="fr"><label>Prefix</label><input type="text" id="cloudPrefix" value="terrains360/"></div>
+          <div class="fr"><label>Access Key</label><input type="text" id="cloudAK" placeholder="AKIAIOSFODNN7EXAMPLE"></div>
+          <div class="fr"><label>Secret Key</label><input type="password" id="cloudSK" placeholder="wJalrXUtnFEMI/K7MDENG/..."></div>
+          <div class="fr"><label>Auto Sync</label><select id="cloudAutoSync"><option value="true">Yes</option><option value="false">No</option></select></div>
+          <div class="btns"><button class="btn btn-s" onclick="saveCloudConfig()">&#x1F4BE; Save &amp; Connect</button><button class="btn btn-p" onclick="forceSync()">&#x1F504; Force Sync</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F4CA;</span> Sync Status</h3></div>
+        <div class="card-b">
+          <div class="dg">
+            <div class="di"><div class="dl">Connected</div><div class="dv" id="csConnected">--</div></div>
+            <div class="di"><div class="dl">Total Uploads</div><div class="dv" id="csTotalUp">0</div></div>
+            <div class="di"><div class="dl">Pending Queue</div><div class="dv" id="csPending">0</div></div>
+            <div class="di"><div class="dl">Failed</div><div class="dv" id="csFailed">0</div></div>
+            <div class="di"><div class="dl">Unsynced Tracks</div><div class="dv" id="csUnsynced" style="color:var(--orange)">0</div></div>
+            <div class="di"><div class="dl">Synced Tracks</div><div class="dv" id="csSynced" style="color:var(--green)">0</div></div>
+          </div>
+          <div class="btns" style="margin-top:8px">
+            <button class="btn btn-s btn-sm" onclick="syncAllTracks()">&#x2601;&#xFE0F; Sync All Unsynced Tracks</button>
+          </div>
+          <div style="font-size:0.65em;color:var(--text3);margin-top:6px">&#x1F504; Auto-sync runs every 60s when S3 is configured &amp; internet is available. Unsynced tracks are automatically uploaded when connectivity returns.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System -->
+  <div class="isub" id="admin_system">
+    <div class="g2">
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x2139;&#xFE0F;</span> System Info</h3></div>
+        <div class="card-b">
+          <div class="srow"><span>Version</span><span class="srow-v">3.1.0</span></div>
+          <div class="srow"><span>Build</span><span class="srow-v">2026.02</span></div>
+          <div class="srow"><span>GNSS</span><span class="srow-v">GeoMate SG7 (UM980)</span></div>
+          <div class="srow"><span>IMU</span><span class="srow-v" style="color:var(--text3)">Next Version</span></div>
+          <div class="srow"><span>Auth</span><span class="srow-v">JWT + bcrypt RBAC</span></div>
+          <div class="srow"><span>Storage</span><span class="srow-v">S3 + GeoParquet</span></div>
+          <div class="srow"><span>Offline</span><span class="srow-v">Service Worker PWA</span></div>
+          <div class="srow"><span>Framework</span><span class="srow-v">FastAPI + Uvicorn</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F310;</span> Server Network</h3><span class="badge badge-p">SuperAdmin</span></div>
+        <div class="card-b">
+          <div class="srow"><span>Public IP</span><span class="srow-v" id="adminPubIP">49.207.0.104</span></div>
+          <div class="srow"><span>Port</span><span class="srow-v" id="adminPort">9360</span></div>
+          <div class="srow"><span>Server URL</span><span class="srow-v" style="font-size:0.72em" id="adminServerURL">auto-discovered</span></div>
+          <div class="srow"><span>LAN IP</span><span class="srow-v" id="adminLanIP">192.168.0.3</span></div>
+          <div class="srow"><span>GNSS Network</span><span class="srow-v">192.168.1.1:1212</span></div>
+          <div class="srow"><span>Firewall Rule</span><span class="srow-v">TerraINS360_9360</span></div>
+          <div class="srow"><span>Port Forward</span><span class="srow-v" style="color:var(--green)">Active (TCP 9360)</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F3E2;</span> Company</h3></div>
+        <div class="card-b">
+          <div class="srow"><span>Company</span><span class="srow-v">TerraOrbit Mapping Pvt Ltd</span></div>
+          <div class="srow"><span>Product</span><span class="srow-v">TerraINS360 Logger v3.1</span></div>
+          <div class="srow"><span>Website</span><span class="srow-v"><a href="https://www.terraorbit.in" target="_blank" style="color:var(--accent);text-decoration:none">www.terraorbit.in</a></span></div>
+          <div class="srow"><span>Initiative</span><span class="srow-v" style="color:var(--orange)">Startup India</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3><span class="ch-icon">&#x1F527;</span> Actions</h3></div>
+        <div class="card-b">
+          <div class="btns" style="margin:0;flex-direction:column">
+            <button class="btn btn-o" onclick="resetCfg()">&#x1F504; Reset All Config</button>
+            <button class="btn btn-o" onclick="clearSWCache()">&#x1F9F9; Clear Offline Cache</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar" id="bottomBar" style="display:none">
+  <div class="bb-item"><span class="ic">&#x1F4E1;</span><span class="bb-val" id="bb_gnss">Disconnected</span></div>
+  <div class="bb-sep"></div>
+  <div class="bb-item"><span class="ic">&#x1F310;</span><span class="bb-val" id="bb_ntrip">No NTRIP</span></div>
+  <div class="bb-sep"></div>
+  <div class="bb-item"><span class="ic">&#x1F4C1;</span><span class="bb-val" id="bb_proj">--</span></div>
+  <div class="bb-sep"></div>
+  <div class="bb-item"><span class="ic">&#x1F698;</span><span class="bb-val" id="bb_veh">--</span></div>
+  <div class="bb-sep"></div>
+  <div class="bb-item"><span class="ic">&#x1F4CF;</span><span>H:</span><span class="bb-val" id="bb_ih">--m</span></div>
+  <div class="bb-fill"></div>
+  <div class="bb-sync" id="bb_sync" onclick="forceSync()" title="Cloud sync"><span class="ic">&#x2601;&#xFE0F;</span><span class="bb-val" id="bb_sync_lbl">--</span></div>
+  <div class="bb-sep"></div>
+  <div class="bb-item"><span class="ic">&#x1F4C8;</span><span class="bb-val" id="bb_hz">-- Hz</span></div>
+  <div class="bb-sep"></div>
+  <div class="bb-item"><span class="bb-val" id="bb_uptime">Ready</span></div>
+</div>
+
+<script>
+const FC={0:'#ef4444',1:'#f97316',2:'#eab308',3:'#06b6d4',4:'#22c55e',5:'#14b8a6',6:'#6b7280'};
+const FN={0:'INVALID',1:'SINGLE',2:'DGPS',3:'PPS',4:'RTK FIXED',5:'RTK FLOAT',6:'ESTIMATED'};
+let lastUC=0,rateCount=0,lastRateT=Date.now(),appStartT=Date.now();
+let allProjects=[],activeProjectId='';
+let currentUser=null,authToken=null;
+let isOnline=navigator.onLine;
+let vProfiles={},activeVehicleId='custom';
+let gnssDevices=[];
+let BASE_URL=localStorage.getItem('ti_server_url')||'http://ins360.terraorbit.in';
+
+function precLbl(v){if(v<=0.02)return'Survey Grade (<2cm)';if(v<=0.05)return'Excellent (<5cm)';if(v<=0.1)return'Very Good (<10cm)';if(v<=0.5)return'Good (<50cm)';if(v<=1)return'Moderate (<1m)';if(v<=3)return'Low (<3m)';return'Poor (>3m)';}
+function precClr(v){if(v<=0.02)return'#22c55e';if(v<=0.05)return'#14b8a6';if(v<=0.1)return'#06b6d4';if(v<=0.5)return'#58a6ff';if(v<=1)return'#eab308';if(v<=3)return'#f97316';return'#ef4444';}
+function precW(v){return Math.min(100,Math.max(5,100-(v/5)*95))+'%';}
+function fB(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(2)+' MB';}
+function fD(s){if(s<60)return Math.floor(s)+'s';const m=Math.floor(s/60),sec=Math.floor(s%60);if(m<60)return m+'m '+sec+'s';const h=Math.floor(m/60);return h+'h '+(m%60)+'m';}
+
+/* AUTH */
+function getHeaders(){var h={'Content-Type':'application/json'};if(authToken)h['Authorization']='Bearer '+authToken;return h;}
+function U(path){return BASE_URL+path;}
+function timedFetch(url,opts,ms){ms=ms||8000;var ctrl=new AbortController();opts=opts||{};opts.signal=ctrl.signal;var t=setTimeout(function(){ctrl.abort();},ms);return fetch(url,opts).finally(function(){clearTimeout(t);});}
+async function api(url,method,data){var opts={method:method||'GET',headers:getHeaders()};if(data)opts.body=JSON.stringify(data);var r=await timedFetch(U(url),opts);return r.json();}
+async function post(url,data){return api(url,'POST',data);}
+
+async function doLogin(){
+  var surl=document.getElementById('serverUrl').value.trim()||'http://ins360.terraorbit.in';
+  if(!surl.startsWith('http://') && !surl.startsWith('https://'))surl='http://'+surl;
+  surl=surl.replace(/\/+$/,'');
+  BASE_URL=surl;localStorage.setItem('ti_server_url',surl);
+  var user=document.getElementById('loginUser').value.trim(),pass=document.getElementById('loginPass').value;
+  if(!user||!pass){document.getElementById('loginError').textContent='Enter username and password';return;}
+  document.getElementById('loginBtn').disabled=true;document.getElementById('loginError').textContent='';
+
+  try{var resp=await timedFetch(U('/api/auth/login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
+    var r=await resp.json();
+    if(resp.ok && r.status==='ok'){currentUser=r.user;authToken=r.token;localStorage.setItem('ti_token',r.token);enterApp();}
+    else{document.getElementById('loginError').textContent=r.detail||'Invalid username or password';}
+  }catch(e){document.getElementById('loginError').textContent='Cannot connect to server. Check your internet connection.';}
+  document.getElementById('loginBtn').disabled=false;
+}
+function enterApp(){
+  document.getElementById('loginPage').classList.add('fade');
+  setTimeout(function(){document.getElementById('loginPage').style.display='none';},600);
+  document.getElementById('topbar').style.display='';
+  document.getElementById('mainWrap').style.display='';
+  document.getElementById('bottomBar').style.display='';
+  startPolling();
+  if(currentUser){
+    document.getElementById('topUserName').textContent=currentUser.display_name||currentUser.username;
+    var rd=document.querySelector('.top-user .role-dot');
+    rd.style.background=currentUser.role==='superadmin'?'var(--purple)':'var(--green)';
+    if(currentUser.role==='superadmin'){
+      document.getElementById('nav_admin').style.display='';
+      loadAdminUsers();loadAdminVehicles();loadGNSSDevices();loadCloudStatus();loadAntennaSettings();loadAdminAllProjects();
+    }
+  }
+  loadConfig();loadVehicles();loadProjects();loadGNSSDeviceDropdown();
+  try{document.getElementById('adminServerURL').textContent=BASE_URL.replace(/^https?:\/\//,'');}catch(e){}
+}
+async function checkSession(){
+  var token=localStorage.getItem('ti_token');if(!token)return false;authToken=token;
+  try{var r=await api('/api/auth/me');if(r.authenticated){currentUser=r.user;return true;}}catch(e){}
+  authToken=null;localStorage.removeItem('ti_token');return false;
+}
+async function doLogout(){try{await post('/api/auth/logout',{});}catch(e){}localStorage.removeItem('ti_token');authToken=null;currentUser=null;location.reload();}
+document.getElementById('loginPass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+document.getElementById('loginUser').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginPass').focus();});
+
+/* NAV */
+function goTab(name){
+  document.querySelectorAll('.tab-page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  var page=document.getElementById('page_'+name),nav=document.getElementById('nav_'+name);
+  if(page)page.classList.add('active');if(nav)nav.classList.add('active');
+  sessionStorage.setItem('ti_tab',name);
+  if(name==='tracks')refreshTracks();
+  if(name==='projects')loadProjects();
+  if(name==='admin'&&currentUser&&currentUser.role==='superadmin'){loadAdminUsers();loadAdminVehicles();loadGNSSDevices();loadCloudStatus();loadAntennaSettings();loadAdminAllProjects();}
+}
+function adminSubTab(el,name){
+  var p=document.getElementById('page_admin');
+  p.querySelectorAll('.itab').forEach(function(t){t.classList.remove('active');});
+  p.querySelectorAll('.isub').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('admin_'+name).classList.add('active');el.classList.add('active');
+}
+
+/* CLOCK */
+setInterval(function(){document.getElementById('topClock').textContent=new Date().toLocaleTimeString('en-GB');
+  document.getElementById('bb_uptime').textContent='Up '+fD(Math.floor((Date.now()-appStartT)/1000));},1000);
+
+/* CHART */
+function updateChart(hist){var c=document.getElementById('fixChart');if(!c)return;c.innerHTML='';var data=hist.slice(-180);
+  for(var i=0;i<data.length;i++){var b=document.createElement('div');b.className='chart-bar';var hh={0:3,1:15,2:35,3:45,4:100,5:75,6:10};b.style.height=(hh[data[i]]||3)+'%';b.style.background=FC[data[i]]||'#6b7280';c.appendChild(b);}
+}
+
+/* GNSS DEVICE DROPDOWN */
+async function loadGNSSDeviceDropdown(){
+  try{
+    var r=await api('/api/gnss/devices');gnssDevices=r.devices||[];
+    var sel=document.getElementById('gnssDevSelect');sel.innerHTML='';
+    if(!gnssDevices.length){sel.innerHTML='<option value="">No devices</option>';return;}
+    for(var i=0;i<gnssDevices.length;i++){
+      var d=gnssDevices[i];var opt=document.createElement('option');
+      opt.value=d.id;opt.textContent=d.name+' ('+d.model+' \u2022 '+d.host+':'+d.port+')';
+      if(d.active)opt.selected=true;
+      sel.appendChild(opt);
+    }
+  }catch(e){}
+}
+function onDeviceSelect(devId){
+  var d=gnssDevices.find(function(x){return x.id===devId;});
+  if(d){document.getElementById('gnssHost').value=d.host;document.getElementById('gnssPort').value=d.port;}
+}
+
+/* POLL */
+var pollRunning=false,pollTimer=null;
+function startPolling(){if(!pollTimer){pollTimer=setInterval(poll,500);poll();}}
+async function poll(){
+  if(!authToken||pollRunning)return;pollRunning=true;
+  try{
+    var r=await timedFetch(U('/api/status'),{headers:getHeaders()},3000);var d=await r.json();
+    var g=d.gnss,n=d.ntrip,l=d.logging,v=d.vehicle||{},ts=d.track_stats||{},cloud=d.cloud||{},cp=d.camera_position||{};
+    var dataAge=g.data_age_s||0,isStale=g.connected&&dataAge>10;
+    // Top bar
+    var sbG=document.getElementById('sb_gnss');
+    if(g.connected&&!isStale&&g.fix_quality>=4){sbG.className='status-seg active';}
+    else if(g.connected&&!isStale){sbG.className='status-seg warn';}
+    else if(isStale){sbG.className='status-seg stale';}
+    else{sbG.className='status-seg';}
+    document.getElementById('sb_gnss_fix').textContent=isStale?'STALE':(g.connected?(FN[g.fix_quality]||'GNSS'):'GNSS OFF');
+    document.getElementById('sb_gnss_sats').textContent=isStale?(Math.floor(dataAge)+'s ago'):(g.connected?g.satellites_used+'sv':'');
+    var sbN=document.getElementById('sb_ntrip');sbN.className=n.connected?'status-seg active':'status-seg';
+    document.getElementById('sb_ntrip_lbl').textContent=n.connected?'RTK '+fB(n.bytes_received):'NTRIP';
+    var sbR=document.getElementById('sb_rec');
+    if(l.recording){sbR.className='status-seg rec';document.getElementById('sb_rec_lbl').textContent='REC '+fD(l.duration_s);}
+    else{sbR.className='status-seg';document.getElementById('sb_rec_lbl').textContent='IDLE';}
+    document.getElementById('sb_lat').textContent=g.lat_display||'--';document.getElementById('sb_lon').textContent=g.lon_display||'--';
+    // Bottom bar
+    document.getElementById('bb_gnss').textContent=isStale?'STALE '+Math.floor(dataAge)+'s':(g.connected?(FN[g.fix_quality]||'--')+' '+g.satellites_used+'sv':'Disconnected');
+    document.getElementById('bb_ntrip').textContent=n.connected?'NTRIP: '+fB(n.bytes_received):'No NTRIP';
+    var proj=d.project||{};
+    document.getElementById('bb_proj').textContent=proj.name||'No Project';
+    document.getElementById('bb_veh').textContent=v.name||'--';
+    document.getElementById('bb_ih').textContent=(v.instrument_height||0).toFixed(2)+'m';
+    var syncEl=document.getElementById('bb_sync');
+    if(cloud.configured){var pend=cloud.pending||0;var unsynced=cloud.unsynced_tracks||ts.cloud_unsynced||0;
+      if(pend>0){syncEl.className='bb-sync syncing';document.getElementById('bb_sync_lbl').textContent=pend+' uploading';}
+      else if(unsynced>0){syncEl.className='bb-sync offline';document.getElementById('bb_sync_lbl').textContent=unsynced+' unsynced';}
+      else{syncEl.className='bb-sync';document.getElementById('bb_sync_lbl').textContent='\u2713 Synced';}}
+    else{syncEl.className='bb-sync';document.getElementById('bb_sync_lbl').textContent='No S3';}
+    if(g.update_count!==lastUC){rateCount++;lastUC=g.update_count;}
+    var now=Date.now();if(now-lastRateT>=2000){document.getElementById('bb_hz').textContent=(rateCount/((now-lastRateT)/1000)).toFixed(1)+' Hz';rateCount=0;lastRateT=now;}
+    // Fix banners
+    ['fixBanner','fixBanner2'].forEach(function(id){var fb=document.getElementById(id);if(!fb)return;
+      if(isStale){fb.textContent='DATA STALE \u2014 '+Math.floor(dataAge)+'s';fb.style.background='linear-gradient(135deg,#f59e0b10,#f59e0b25)';fb.style.borderColor='#f59e0b';fb.style.color='#f59e0b';}
+      else{fb.textContent=(FN[g.fix_quality]||'NO FIX').toUpperCase();fb.style.background='linear-gradient(135deg,'+FC[g.fix_quality]+'10,'+FC[g.fix_quality]+'25)';fb.style.borderColor=FC[g.fix_quality];fb.style.color=FC[g.fix_quality];}
+    });
+    // GNSS page
+    document.getElementById('dLat').textContent=g.lat_display||'--';document.getElementById('dLon').textContent=g.lon_display||'--';
+    document.getElementById('dAlt').textContent=g.altitude.toFixed(3)+' m';document.getElementById('dGeoid').textContent=g.geoid_height.toFixed(3)+' m';
+    document.getElementById('dTime').textContent=g.timestamp_utc||'--';document.getElementById('dDate').textContent=g.date_utc||'--';
+    document.getElementById('fixBadge').textContent=FN[g.fix_quality]||'--';document.getElementById('fixBadge').style.color=FC[g.fix_quality];
+    if(cp.camera_lat){document.getElementById('camLat').textContent=cp.camera_lat.toFixed(8);document.getElementById('camLon').textContent=cp.camera_lon.toFixed(8);document.getElementById('camAlt').textContent=cp.camera_alt.toFixed(3)+' m';document.getElementById('camGL').textContent=cp.camera_height_gl.toFixed(3)+' m';}
+    document.getElementById('dHPrec').textContent=g.h_precision.toFixed(3)+' m';document.getElementById('dVPrec').textContent=g.v_precision.toFixed(3)+' m';
+    document.getElementById('sHP').textContent=g.h_precision.toFixed(3);document.getElementById('sVP').textContent=g.v_precision.toFixed(3);
+    var hb=document.getElementById('hBar'),vb=document.getElementById('vBar');
+    hb.style.width=precW(g.h_precision);hb.style.background=precClr(g.h_precision);vb.style.width=precW(g.v_precision);vb.style.background=precClr(g.v_precision);
+    document.getElementById('hLabel').textContent=precLbl(g.h_precision);document.getElementById('vLabel').textContent=precLbl(g.v_precision);
+    document.getElementById('sSats').textContent=g.satellites_used;document.getElementById('sHdop').textContent=g.hdop.toFixed(2);
+    document.getElementById('sPdop').textContent=(g.pdop||0).toFixed(2);document.getElementById('sVdop').textContent=(g.vdop||0).toFixed(2);
+    document.getElementById('sSpeed').textContent=g.speed_kmh.toFixed(1)+' km/h';document.getElementById('sCourse').textContent=(g.course||0).toFixed(0)+'\u00b0';
+    document.getElementById('updateCnt').textContent=g.update_count+' upd';
+    if(g.fix_history)updateChart(g.fix_history);
+    document.getElementById('ntripBytes').textContent=fB(n.bytes_received);
+    if(n.status!=='Disconnected')document.getElementById('ntripStat').textContent=n.status+(n.error?' \u2014 '+n.error:'');
+    if(d.lever_arm_desc){document.getElementById('laDesc').textContent=d.lever_arm_desc;document.getElementById('laDesc2').textContent=d.lever_arm_desc;}
+    if(v.lever_arm){[document.getElementById('laOff'),document.getElementById('laOff2')].forEach(function(off){if(!off)return;var s=16;off.style.left='calc(50% + '+(v.lever_arm.x||0)*s+'px)';off.style.top='calc(50% - '+(v.lever_arm.y||0)*s+'px)';});}
+    // Dashboard
+    document.getElementById('sLat').textContent=g.lat_display||'--';document.getElementById('sLon').textContent=g.lon_display||'--';
+    document.getElementById('sHPr').textContent=g.h_precision.toFixed(3)+' m';document.getElementById('sVPr').textContent=g.v_precision.toFixed(3)+' m';
+    document.getElementById('sSpd').textContent=g.speed_kmh.toFixed(1)+' km/h';document.getElementById('sHdg').textContent=(g.course||0).toFixed(0)+'\u00b0';
+    document.getElementById('svProj').textContent=proj.name||'None';
+    document.getElementById('svVeh').textContent=v.name||'--';
+    document.getElementById('svIH').textContent=(v.instrument_height||0).toFixed(3)+' m';
+    if(v.lever_arm){var la=v.lever_arm;document.getElementById('svLA').textContent='X:'+la.x+' Y:'+la.y+' Z:'+la.z;}
+    if(cloud.configured){document.getElementById('cloudBadge').textContent=cloud.online?'ONLINE':'QUEUED';document.getElementById('cloudBadge').className=cloud.online?'badge badge-g':'badge badge-o';document.getElementById('cloudStatus').textContent=cloud.online?'Connected':'Offline (queued)';document.getElementById('cloudQueue').textContent=(cloud.pending||0)+' items';document.getElementById('cloudUploads').textContent=cloud.total_uploads||0;document.getElementById('cloudLast').textContent=cloud.last_sync||'--';document.getElementById('cloudUnsynced').textContent=cloud.unsynced_tracks||0;document.getElementById('cloudSyncedTracks').textContent=cloud.synced_tracks||0;}
+    else{document.getElementById('cloudBadge').textContent='OFF';document.getElementById('cloudBadge').className='badge badge-d';document.getElementById('cloudStatus').textContent='Not configured';document.getElementById('cloudUnsynced').textContent=ts.cloud_unsynced||0;document.getElementById('cloudSyncedTracks').textContent=ts.cloud_synced||0;}
+    if(l.recording){document.getElementById('surveyIdle').style.display='none';document.getElementById('surveyRec').style.display='';document.getElementById('surveyBadge').textContent='RECORDING';document.getElementById('surveyBadge').className='badge badge-r';document.getElementById('recTrack').textContent=l.session;document.getElementById('recDur').textContent=fD(l.duration_s);document.getElementById('recCnt').textContent=l.records;document.getElementById('recHz').textContent=l.hz+' Hz';document.getElementById('recProj').textContent=proj.name||'--';document.getElementById('recVeh').textContent=v.name||'--';document.getElementById('surveyCard').style.borderColor='var(--red)';}
+    else{document.getElementById('surveyIdle').style.display='';document.getElementById('surveyRec').style.display='none';document.getElementById('surveyBadge').textContent='Idle';document.getElementById('surveyBadge').className='badge badge-d';document.getElementById('surveyCard').style.borderColor='';}
+    document.getElementById('tSynced').textContent=ts.cloud_synced||0;document.getElementById('tUnsynced').textContent=ts.cloud_unsynced||0;
+    document.getElementById('tTotal').textContent=ts.total_tracks||0;document.getElementById('tDone').textContent=ts.completed||0;document.getElementById('tRec').textContent=ts.recording||0;document.getElementById('tRecs').textContent=ts.total_records||0;document.getElementById('tVehs').textContent=(ts.vehicles_used||[]).length;
+    // Workflow
+    for(var wi=1;wi<=4;wi++){document.getElementById('wf'+wi).className='wf-dot';}
+    if(proj.name){document.getElementById('wf1').classList.add('wf-done');}
+    if(g.connected){document.getElementById('wf2').classList.add('wf-done');}
+    if(l.recording){document.getElementById('wf3').classList.add('wf-active');}else if(ts.total_tracks>0){document.getElementById('wf3').classList.add('wf-done');}
+    if(ts.completed>0){document.getElementById('wf4').classList.add('wf-done');}
+  }catch(e){console.error('Poll error',e);}
+  pollRunning=false;
+}
+
+/* PROJECTS */
+function openProjModal(){document.getElementById('projModal').classList.add('show');document.getElementById('newProjName').focus();}
+function closeProjModal(){document.getElementById('projModal').classList.remove('show');}
+async function createProject(){
+  var name=document.getElementById('newProjName').value.trim();
+  if(!name){document.getElementById('newProjName').style.borderColor='var(--red)';return;}
+  await post('/api/projects/create',{name:name,operator:document.getElementById('newProjOp').value.trim(),client:document.getElementById('newProjClient').value.trim(),location:document.getElementById('newProjLoc').value.trim(),description:document.getElementById('newProjDesc').value.trim()});
+  closeProjModal();document.getElementById('newProjName').value='';document.getElementById('newProjClient').value='';document.getElementById('newProjLoc').value='';document.getElementById('newProjDesc').value='';
+  loadProjects();
+}
+async function loadProjects(){
+  try{
+    var r=await api('/api/projects');allProjects=r.projects||[];activeProjectId=r.active_id||'';
+    document.getElementById('projCount').textContent=allProjects.length;
+    // Get all tracks to count per project
+    var tracksR=await api('/api/tracks');var allTracks=tracksR.tracks||[];
+    var totalT=0;
+    var tracksByProj={};
+    for(var ti=0;ti<allTracks.length;ti++){
+      var tp=allTracks[ti].project||'Unassigned';
+      if(!tracksByProj[tp])tracksByProj[tp]=[];
+      tracksByProj[tp].push(allTracks[ti]);totalT++;
+    }
+    document.getElementById('projTotalTracks').textContent=totalT;
+    var cont=document.getElementById('projectList');
+    if(!allProjects.length){
+      cont.innerHTML='<div class="empty-state" style="padding:20px"><div class="es-icon">\uD83D\uDCC1</div><p>No projects yet. Create your first project.</p></div>';
+      document.getElementById('activeProjBadge').textContent='--';
+      updateSurveyDropdowns();return;
+    }
+    var html='';
+    for(var i=0;i<allProjects.length;i++){
+      var p=allProjects[i],sel=p.id===activeProjectId?'sel':'';
+      var pTracks=tracksByProj[p.name]||[];
+      html+='<div class="pcard '+sel+'" onclick="switchProject(\''+p.id+'\')">';
+      html+='<div class="pn"><span>\uD83D\uDCC1 '+p.name+'</span>';
+      if(p.id===activeProjectId)html+='<span class="badge badge-g">Active</span>';
+      html+='</div><div class="pm">';
+      if(p.operator)html+='<span>\uD83D\uDC64 '+p.operator+'</span>';
+      if(p.client)html+='<span>\uD83C\uDFE2 '+p.client+'</span>';
+      if(p.location)html+='<span>\uD83D\uDCCD '+p.location+'</span>';
+      if(p.created)html+='<span>\uD83D\uDCC5 '+p.created.split(' ')[0]+'</span>';
+      html+='<span>\uD83D\uDCCA '+pTracks.length+' tracks</span>';
+      html+='</div>';
+      if(p.description)html+='<div style="font-size:0.68em;color:var(--text3);margin-top:3px">'+p.description+'</div>';
+      // Show recent tracks
+      if(pTracks.length>0){
+        html+='<div class="p-tracks">';
+        var show=pTracks.slice(0,3);
+        for(var j=0;j<show.length;j++){
+          var t=show[j];
+          var sb=t.status==='recording'?'\u23FA REC':t.status==='completed'?'\u2713':'';
+          html+='<div style="display:flex;justify-content:space-between;padding:2px 0"><span>\uD83D\uDCCC '+t.name+'</span><span>'+sb+' '+t.records+' pts</span></div>';
+        }
+        if(pTracks.length>3)html+='<div style="color:var(--accent);font-size:0.9em">+'+(pTracks.length-3)+' more tracks...</div>';
+        html+='</div>';
+      }
+      html+='<div class="pd"><button class="btn btn-d btn-sm" onclick="event.stopPropagation();deleteProject(\''+p.id+'\')">\u00d7 Delete</button></div></div>';
+    }
+    cont.innerHTML=html;
+    var active=allProjects.find(function(p){return p.id===activeProjectId;});
+    document.getElementById('activeProjBadge').textContent=active?active.name:'--';
+    updateSurveyDropdowns();
+  }catch(e){console.error(e);}
+}
+async function switchProject(id){await post('/api/projects/switch',{project_id:id});loadProjects();}
+async function deleteProject(id){if(!confirm('Delete project?'))return;await fetch(U('/api/projects/'+id),{method:'DELETE',headers:getHeaders()});loadProjects();}
+
+/* VEHICLES */
+async function loadVehicles(){
+  try{
+    var r=await api('/api/vehicles');vProfiles=r.profiles||{};activeVehicleId=r.active||'custom';
+    updateSurveyDropdowns();
+  }catch(e){}
+}
+function updateSurveyDropdowns(){
+  // Project dropdown
+  var ps=document.getElementById('surveyProject');ps.innerHTML='';
+  if(!allProjects.length){ps.innerHTML='<option value="">-- No Projects --</option>';}
+  else{for(var i=0;i<allProjects.length;i++){var o=document.createElement('option');o.value=allProjects[i].id;o.textContent=allProjects[i].name;if(allProjects[i].id===activeProjectId)o.selected=true;ps.appendChild(o);}}
+  // Vehicle dropdown
+  var vs=document.getElementById('surveyVehicle');vs.innerHTML='';
+  var icons={car:'\uD83D\uDE97',suv:'\uD83D\uDE99',van:'\uD83D\uDE90',bike:'\uD83D\uDEB2',walk:'\uD83D\uDEB6',custom:'\u2699\uFE0F'};
+  for(var id in vProfiles){if(!vProfiles.hasOwnProperty(id))continue;var vp=vProfiles[id];var o=document.createElement('option');o.value=id;o.textContent=(icons[vp.type]||'')+' '+vp.name+' (H:'+(vp.instrument_height||0)+'m)';if(id===activeVehicleId)o.selected=true;vs.appendChild(o);}
+  // Track filter
+  var tf=document.getElementById('trackProjFilter');var prevVal=tf.value;tf.innerHTML='<option value="">All Projects</option>';
+  for(var i=0;i<allProjects.length;i++){var o=document.createElement('option');o.value=allProjects[i].name;o.textContent=allProjects[i].name;tf.appendChild(o);}
+  tf.value=prevVal;
+}
+
+/* GNSS */
+async function gnssConnect(){
+  var h=document.getElementById('gnssHost').value,p=parseInt(document.getElementById('gnssPort').value);
+  var ih=parseFloat(document.getElementById('instrH').value)||0;
+  await post('/api/gnss/connect',{host:h,port:p,instrument_height:ih});
+}
+async function gnssDisconnect(){await post('/api/gnss/disconnect',{});}
+async function ntripConnect(){await post('/api/ntrip/connect',{host:document.getElementById('ntripHost').value,port:parseInt(document.getElementById('ntripPort').value),mountpoint:document.getElementById('ntripMount').value,username:document.getElementById('ntripUser').value,password:document.getElementById('ntripPass').value});}
+async function ntripDisconnect(){await post('/api/ntrip/disconnect',{});}
+async function ntripMounts(){var h=document.getElementById('ntripHost').value,p=parseInt(document.getElementById('ntripPort').value);var r=await api('/api/ntrip/sourcetable?host='+h+'&port='+p);if(r.mountpoints&&r.mountpoints.length){alert('Mountpoints:\n'+r.mountpoints.map(function(m){return m.name+' ('+m.format+')';}).join('\n'));}else{alert('No mountpoints found');}}
+async function setInstrH(){await post('/api/gnss/instrument_height',{height:parseFloat(document.getElementById('instrH').value)||0});}
+
+/* SURVEY */
+async function startSurvey(){
+  // Select project & vehicle first
+  var projId=document.getElementById('surveyProject').value;
+  var vehId=document.getElementById('surveyVehicle').value;
+  if(projId&&projId!==activeProjectId){await post('/api/projects/switch',{project_id:projId});}
+  if(vehId&&vehId!==activeVehicleId){await post('/api/vehicle/select',{vehicle_id:vehId});}
+  await post('/api/logging/configure',{hz:parseInt(document.getElementById('logHz').value),format:document.getElementById('logFmt').value,prefix:document.getElementById('logPfx').value});
+  await post('/api/survey/start',{name:document.getElementById('trackName').value,notes:''});
+}
+async function stopSurvey(){await post('/api/survey/stop',{});}
+
+/* TRACKS — grouped by project */
+async function refreshTracks(){
+  try{
+    var projFilter=document.getElementById('trackProjFilter').value;
+    var url='/api/tracks'+(projFilter?'?project='+encodeURIComponent(projFilter):'');
+    var r=await api(url);var allT=r.tracks||[];
+    var cont=document.getElementById('trackGroups');
+    if(!allT.length){cont.innerHTML='<div class="empty-state"><div class="es-icon">\uD83D\uDCC2</div><p>No tracks '+(projFilter?'in "'+projFilter+'"':'recorded yet')+'.</p></div>';return;}
+    // Group by project
+    var byProj={};
+    for(var i=0;i<allT.length;i++){var t=allT[i];var pn=t.project||'Unassigned';if(!byProj[pn])byProj[pn]=[];byProj[pn].push(t);}
+    var html='';var vIcons={car:'\uD83D\uDE97',suv:'\uD83D\uDE99',van:'\uD83D\uDE90',bike:'\uD83D\uDEB2',walk:'\uD83D\uDEB6'};
+    for(var projName in byProj){
+      if(!byProj.hasOwnProperty(projName))continue;
+      var trks=byProj[projName];
+      html+='<div class="vgrp"><div class="vgrp-hdr"><span>\uD83D\uDCC1 '+projName+'</span><span class="badge badge-b">'+trks.length+' tracks</span></div>';
+      for(var i=0;i<trks.length;i++){
+        var t=trks[i];var vi=vIcons[t.vehicle]||'\uD83D\uDE98';
+        var sb=t.status==='recording'?'<span class="badge badge-r">REC</span>':t.status==='completed'?'<span class="badge badge-g">Done</span>':'<span class="badge badge-d">'+t.status+'</span>';
+        var syncBadge=t.cloud_synced?'<span class="badge badge-b" title="Synced to S3">\u2601\u2713</span>':'<span class="badge badge-o" title="Not synced">\u2601\u2191</span>';
+        html+='<div class="track-item"><div class="track-head"><span class="track-name">\uD83D\uDCCC '+t.name+'</span><span style="display:flex;gap:3px">'+syncBadge+sb+'</span></div>'+
+          '<div class="track-meta"><span>'+vi+' '+(t.vehicle_name||t.vehicle)+'</span><span>\uD83D\uDCC5 '+(t.start_time?new Date(t.start_time).toLocaleString():'--')+'</span><span>\u23F1 '+fD(t.duration_s)+'</span><span>\uD83D\uDCCA '+t.records+'</span><span>\uD83D\uDCE1 '+t.hz+'Hz</span><span>\uD83D\uDCCF H:'+t.instrument_height+'m</span></div>'+
+          '<div class="btns" style="margin-top:5px">'+
+            '<button class="btn btn-o btn-sm" onclick="exportT(\''+t.id+'\',\'csv\')">\uD83D\uDCE5 CSV</button>'+
+            '<button class="btn btn-o btn-sm" onclick="exportT(\''+t.id+'\',\'nmea\')">\uD83D\uDCE5 NMEA</button>'+
+            '<button class="btn btn-o btn-sm" onclick="exportT(\''+t.id+'\',\'kml\')">\uD83C\uDF0D KML</button>'+
+            '<button class="btn btn-p btn-sm" onclick="exportT(\''+t.id+'\',\'geoparquet\')">\uD83C\uDF10 GeoParquet</button>'+
+            '<button class="btn btn-s btn-sm" onclick="openTrackMap(\''+t.id+'\')">\uD83D\uDDFA Map</button>'+
+            '<button class="btn btn-o btn-sm" onclick="syncTrack(\''+t.id+'\')">\u2601\uFE0F Sync</button>'+
+            '<button class="btn btn-d btn-sm" onclick="delTrack(\''+t.id+'\')">\uD83D\uDDD1</button>'+
+          '</div></div>';
+      }
+      html+='</div>';
+    }
+    cont.innerHTML=html;
+  }catch(e){console.error(e);}
+}
+function exportT(id,fmt){window.open(U('/api/tracks/'+id+'/export?format='+fmt),'_blank');}
+async function delTrack(id){if(!confirm('Delete track?'))return;await fetch(U('/api/tracks/'+id),{method:'DELETE',headers:getHeaders()});refreshTracks();}
+async function syncTrack(id){try{var r=await post('/api/tracks/'+id+'/sync',{});alert(r.status==='queued'?'Track queued for cloud sync':'Sync: '+JSON.stringify(r));}catch(e){alert('Sync error');}}
+
+/* ADMIN: USERS */
+function openUserModal(editing){
+  document.getElementById('userModal').classList.add('show');
+  if(editing){document.getElementById('userModalTitle').textContent='\u270F\uFE0F Edit User';document.getElementById('muPassRow').style.display='none';document.getElementById('muSaveBtn').textContent='Update User';document.getElementById('muSaveBtn').setAttribute('data-mode','edit');}
+  else{document.getElementById('userModalTitle').textContent='\u2795 New User';document.getElementById('muPassRow').style.display='';document.getElementById('muSaveBtn').textContent='Create User';document.getElementById('muSaveBtn').setAttribute('data-mode','create');document.getElementById('muUsername').value='';document.getElementById('muDisplayName').value='';document.getElementById('muEmail').value='';document.getElementById('muPassword').value='';}
+  document.getElementById('muUsername').focus();
+}
+function closeUserModal(){document.getElementById('userModal').classList.remove('show');}
+async function saveUser(){
+  var mode=document.getElementById('muSaveBtn').getAttribute('data-mode'),uname=document.getElementById('muUsername').value.trim();if(!uname)return;
+  if(mode==='create'){var pass=document.getElementById('muPassword').value;if(!pass||pass.length<4){alert('Password too short');return;}await post('/api/admin/users/create',{username:uname,password:pass,display_name:document.getElementById('muDisplayName').value.trim(),email:document.getElementById('muEmail').value.trim(),role:'user'});}
+  else{await post('/api/admin/users/update',{username:uname,display_name:document.getElementById('muDisplayName').value.trim(),email:document.getElementById('muEmail').value.trim(),active:true});}
+  closeUserModal();loadAdminUsers();
+}
+async function loadAdminUsers(){
+  try{var r=await api('/api/admin/users');var users=r.users||[];var tbody=document.getElementById('userTableBody');
+    if(!users.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3)">No users</td></tr>';return;}
+    tbody.innerHTML=users.map(function(u){var roleClr=u.role==='superadmin'?'var(--purple)':'var(--accent)';var statusCls=u.active!==false?'user-active':'user-inactive';var statusTxt=u.active!==false?'\u2713 Active':'\u2717 Inactive';var actions='';
+      if(u.role!=='superadmin'){actions='<button class="btn btn-o btn-sm" onclick="editUser(\''+u.username+'\',\''+u.display_name+'\',\''+u.email+'\')">\u270F</button> <button class="btn btn-d btn-sm" onclick="deleteUser(\''+u.username+'\')">\u2717</button>';}
+      else{actions='<span style="color:var(--text3);font-size:0.7em">Protected</span>';}
+      return '<tr><td><b>'+u.username+'</b></td><td>'+(u.display_name||'--')+'</td><td><span style="color:'+roleClr+'">'+u.role+'</span></td><td><span class="'+statusCls+'">'+statusTxt+'</span></td><td>'+actions+'</td></tr>';}).join('');
+  }catch(e){}
+}
+function editUser(uname,dname,email){document.getElementById('muUsername').value=uname;document.getElementById('muDisplayName').value=dname||'';document.getElementById('muEmail').value=email||'';openUserModal(true);}
+async function deleteUser(uname){if(!confirm('Delete user "'+uname+'"?'))return;await fetch(U('/api/admin/users/'+uname),{method:'DELETE',headers:getHeaders()});loadAdminUsers();}
+
+/* ADMIN: VEHICLES */
+async function loadAdminVehicles(){
+  try{
+    var r=await api('/api/vehicles');vProfiles=r.profiles||{};activeVehicleId=r.active||'custom';
+    var g=document.getElementById('vehicleGrid');g.innerHTML='';
+    var icons={car:'\uD83D\uDE97',suv:'\uD83D\uDE99',van:'\uD83D\uDE90',bike:'\uD83D\uDEB2',walk:'\uD83D\uDEB6',custom:'\u2699\uFE0F'};
+    for(var id in vProfiles){if(!vProfiles.hasOwnProperty(id))continue;var vp=vProfiles[id];var ic=icons[vp.type]||'\u2699\uFE0F';var sel=id===activeVehicleId?'sel':'';
+      g.innerHTML+='<div class="vcard '+sel+'" onclick="showVForm(\''+id+'\')"><div class="vn">'+ic+' '+vp.name+'</div><div class="vt">'+vp.type+' \u2022 H:'+(vp.instrument_height||0)+'m \u2022 LA:X'+((vp.lever_arm||{}).x||0)+' Y'+((vp.lever_arm||{}).y||0)+' Z'+((vp.lever_arm||{}).z||0)+'</div><div style="font-size:0.6em;color:var(--accent);margin-top:2px">\u270F Click to edit</div></div>';
+    }
+    updateSurveyDropdowns();
+  }catch(e){}
+}
+async function selVeh(id){await post('/api/vehicle/select',{vehicle_id:id});loadAdminVehicles();loadVehicles();}
+function showVForm(editId){
+  document.getElementById('vformCard').style.display='';
+  if(editId&&vProfiles[editId]){
+    var vp=vProfiles[editId];
+    document.getElementById('vformTitle').textContent='Edit Vehicle';
+    document.getElementById('nVId').value=editId;document.getElementById('nVName').value=vp.name;
+    document.getElementById('nVType').value=vp.type;document.getElementById('nVIH').value=vp.instrument_height||2;
+    document.getElementById('nVLX').value=(vp.lever_arm||{}).x||0;document.getElementById('nVLY').value=(vp.lever_arm||{}).y||0;document.getElementById('nVLZ').value=(vp.lever_arm||{}).z||0;
+  }else{
+    document.getElementById('vformTitle').textContent='Add Vehicle';
+    document.getElementById('nVId').value='';document.getElementById('nVName').value='';document.getElementById('nVIH').value='2.000';document.getElementById('nVLX').value='0';document.getElementById('nVLY').value='0';document.getElementById('nVLZ').value='0';
+  }
+}
+function hideVForm(){document.getElementById('vformCard').style.display='none';}
+async function saveVehicle(){
+  var id=document.getElementById('nVId').value.trim().replace(/\s+/g,'_');if(!id)return;
+  await post('/api/vehicle/save',{id:id,name:document.getElementById('nVName').value,type:document.getElementById('nVType').value,description:'',lever_arm_x:parseFloat(document.getElementById('nVLX').value)||0,lever_arm_y:parseFloat(document.getElementById('nVLY').value)||0,lever_arm_z:parseFloat(document.getElementById('nVLZ').value)||0,instrument_height:parseFloat(document.getElementById('nVIH').value)||2.0});
+  hideVForm();loadAdminVehicles();
+}
+async function deleteSelVehicle(){
+  var id=document.getElementById('nVId').value.trim();if(!id||id==='custom'){alert('Cannot delete');return;}
+  if(!confirm('Delete vehicle "'+id+'"?'))return;
+  await post('/api/vehicle/delete',{vehicle_id:id});hideVForm();loadAdminVehicles();
+}
+
+/* ADMIN: GNSS DEVICES */
+async function loadGNSSDevices(){
+  try{var r=await api('/api/gnss/devices');gnssDevices=r.devices||[];var cont=document.getElementById('deviceList');
+    if(!gnssDevices.length){cont.innerHTML='<div class="empty-state" style="padding:12px"><p>No GNSS devices. Add one.</p></div>';return;}
+    cont.innerHTML=gnssDevices.map(function(d){var ab=d.active?'<span class="badge badge-g">Active</span>':'<span class="badge badge-d">Inactive</span>';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)"><div><b style="font-size:0.82em">'+d.name+'</b> <span style="color:var(--text3);font-size:0.72em">'+d.model+' \u2022 '+d.host+':'+d.port+' \u2022 '+d.protocol+'</span></div><div style="display:flex;gap:5px;align-items:center">'+ab+'<button class="btn btn-o btn-sm" onclick="editDevice(\''+d.id+'\')">\u270F</button><button class="btn btn-d btn-sm" onclick="deleteDevice(\''+d.id+'\')">\u2717</button></div></div>';}).join('');
+  }catch(e){}
+}
+function addGNSSDevice(){document.getElementById('deviceForm').style.display='';document.getElementById('devFormTitle').textContent='Add Device';document.getElementById('devId').value='sg7_'+Date.now();document.getElementById('devName').value='';document.getElementById('devModel').value='UM980';document.getElementById('devHost').value='192.168.1.1';document.getElementById('devPort').value='1212';}
+function hideDevForm(){document.getElementById('deviceForm').style.display='none';}
+async function editDevice(id){var r=await api('/api/gnss/devices');var dev=(r.devices||[]).find(function(d){return d.id===id;});if(!dev)return;document.getElementById('deviceForm').style.display='';document.getElementById('devFormTitle').textContent='Edit Device';document.getElementById('devId').value=dev.id;document.getElementById('devName').value=dev.name;document.getElementById('devModel').value=dev.model;document.getElementById('devHost').value=dev.host;document.getElementById('devPort').value=dev.port;document.getElementById('devProto').value=dev.protocol;document.getElementById('devActive').value=dev.active?'true':'false';}
+async function saveGNSSDevice(){await post('/api/gnss/devices/save',{id:document.getElementById('devId').value,name:document.getElementById('devName').value,model:document.getElementById('devModel').value,host:document.getElementById('devHost').value,port:parseInt(document.getElementById('devPort').value),protocol:document.getElementById('devProto').value,active:document.getElementById('devActive').value==='true'});hideDevForm();loadGNSSDevices();loadGNSSDeviceDropdown();}
+async function deleteDevice(id){if(!confirm('Delete device?'))return;await fetch(U('/api/gnss/devices/'+id),{method:'DELETE',headers:getHeaders()});loadGNSSDevices();loadGNSSDeviceDropdown();}
+
+/* ANTENNA SETTINGS */
+async function saveAntennaSettings(){
+  var apc=parseFloat(document.getElementById('antPhaseCenter').value)||0.077;
+  var ih=parseFloat(document.getElementById('adminInstH').value)||0;
+  await post('/api/gnss/antenna_settings',{antenna_phase_center:apc,instrument_height:ih});
+  alert('Antenna settings saved. APC='+apc+'m, IH='+ih+'m');
+}
+async function loadAntennaSettings(){
+  try{var c=await api('/api/config');
+    if(c.gnss){
+      document.getElementById('antPhaseCenter').value=c.gnss.antenna_phase_center||0.077;
+      document.getElementById('adminInstH').value=c.gnss.instrument_height||0;
+    }
+  }catch(e){}
+}
+
+/* TRACK MAP VIEWER */
+var trackMapObj=null,trackMapPoints=[],trackMapMarker=null,trackMapPolyline=null;
+function openTrackMap(trackId){
+  document.getElementById('mapModal').classList.add('show');
+  document.getElementById('mapTrackName').textContent='Loading...';
+  // Fetch track points
+  fetch(U('/api/tracks/'+trackId+'/points'),{headers:getHeaders()}).then(function(r){return r.json();}).then(function(data){
+    if(!data.points||!data.points.length){document.getElementById('mapTrackName').textContent='No position data';return;}
+    trackMapPoints=data.points;
+    document.getElementById('mapTrackName').textContent=data.track_name||'Track';
+    document.getElementById('mapTrackInfo').textContent=trackMapPoints.length+' points';
+    document.getElementById('mapPtTotal').textContent=trackMapPoints.length;
+    document.getElementById('mapSlider').max=trackMapPoints.length-1;
+    document.getElementById('mapSlider').value=0;
+    // Init map
+    if(trackMapObj){trackMapObj.remove();trackMapObj=null;}
+    trackMapObj=L.map('trackMap',{zoomControl:true});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'OpenStreetMap'}).addTo(trackMapObj);
+    // Draw polyline
+    var latlngs=trackMapPoints.map(function(p){return[p.lat,p.lon];});
+    trackMapPolyline=L.polyline(latlngs,{color:'#0ea5e9',weight:3,opacity:0.8}).addTo(trackMapObj);
+    trackMapObj.fitBounds(trackMapPolyline.getBounds(),{padding:[30,30]});
+    // Start marker
+    var startPt=trackMapPoints[0];
+    trackMapMarker=L.circleMarker([startPt.lat,startPt.lon],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:0.9}).addTo(trackMapObj);
+    // Start/end markers
+    L.circleMarker([trackMapPoints[0].lat,trackMapPoints[0].lon],{radius:6,color:'#10b981',fillColor:'#10b981',fillOpacity:1}).addTo(trackMapObj).bindPopup('Start');
+    L.circleMarker([trackMapPoints[trackMapPoints.length-1].lat,trackMapPoints[trackMapPoints.length-1].lon],{radius:6,color:'#ef4444',fillColor:'#ef4444',fillOpacity:1}).addTo(trackMapObj).bindPopup('End');
+    onMapSlider(0);
+    setTimeout(function(){trackMapObj.invalidateSize();},200);
+  }).catch(function(e){document.getElementById('mapTrackName').textContent='Error loading track data';console.error(e);});
+}
+function closeMapModal(){
+  document.getElementById('mapModal').classList.remove('show');
+  if(trackMapObj){trackMapObj.remove();trackMapObj=null;}
+  trackMapPoints=[];trackMapMarker=null;trackMapPolyline=null;
+}
+function onMapSlider(val){
+  var idx=parseInt(val);if(!trackMapPoints.length||idx>=trackMapPoints.length)return;
+  var pt=trackMapPoints[idx];
+  document.getElementById('mapPtIdx').textContent=idx+1;
+  document.getElementById('mapPtLat').textContent=pt.lat.toFixed(8);
+  document.getElementById('mapPtLon').textContent=pt.lon.toFixed(8);
+  document.getElementById('mapPtAlt').textContent=(pt.alt||0).toFixed(2)+'m';
+  document.getElementById('mapPtFix').textContent=FN[pt.fix]||pt.fix||'--';
+  document.getElementById('mapPtTime').textContent=pt.time||'--';
+  document.getElementById('mapPtSpeed').textContent=(pt.speed||0).toFixed(1)+' km/h';
+  if(trackMapMarker){trackMapMarker.setLatLng([pt.lat,pt.lon]);}
+  // Draw traversed portion in different color
+  if(trackMapPolyline&&trackMapObj){
+    trackMapObj.eachLayer(function(l){if(l._traversed)trackMapObj.removeLayer(l);});
+    if(idx>0){
+      var trav=trackMapPoints.slice(0,idx+1).map(function(p){return[p.lat,p.lon];});
+      var tl=L.polyline(trav,{color:'#22c55e',weight:4,opacity:0.9}).addTo(trackMapObj);
+      tl._traversed=true;
+    }
+  }
+}
+
+/* ADMIN: ALL PROJECTS & TRACKS */
+async function loadAdminAllProjects(){
+  try{
+    var r=await api('/api/admin/all_projects');
+    var projects=r.projects||[];var cont=document.getElementById('adminAllProjList');
+    if(!projects.length){cont.innerHTML='<div class="empty-state" style="padding:16px"><p>No projects found.</p></div>';return;}
+    var html='';
+    for(var i=0;i<projects.length;i++){
+      var p=projects[i];var tracks=p.tracks||[];
+      html+='<div class="proj-exp-group">';
+      html+='<div class="proj-exp-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">';
+      html+='<div><b style="font-size:0.85em">\uD83D\uDCC1 '+p.name+'</b> <span style="font-size:0.7em;color:var(--text3)">'+(p.operator?' \u2022 '+p.operator:'')+(p.client?' \u2022 '+p.client:'')+(p.location?' \u2022 \uD83D\uDCCD'+p.location:'')+'</span></div>';
+      html+='<div style="display:flex;gap:6px;align-items:center"><span class="badge badge-b">'+tracks.length+' tracks</span>';
+      html+='<button class="btn btn-o btn-sm" onclick="event.stopPropagation();exportProject(\''+p.name+'\',\'csv\')">\uD83D\uDCE5 CSV</button>';
+      html+='<button class="btn btn-w btn-sm" onclick="event.stopPropagation();exportProject(\''+p.name+'\',\'kml\')">\uD83C\uDF0D KML</button>';
+      html+='</div></div>';
+      html+='<div class="proj-exp-body">';
+      if(!tracks.length){html+='<div style="padding:8px;color:var(--text3);font-size:0.78em">No tracks in this project.</div>';}
+      var vIcons={car:'\uD83D\uDE97',suv:'\uD83D\uDE99',van:'\uD83D\uDE90',bike:'\uD83D\uDEB2',walk:'\uD83D\uDEB6'};
+      for(var j=0;j<tracks.length;j++){
+        var t=tracks[j];var vi=vIcons[t.vehicle]||'\uD83D\uDE98';
+        var sb=t.status==='recording'?'<span class="badge badge-r">REC</span>':t.status==='completed'?'<span class="badge badge-g">Done</span>':'<span class="badge badge-d">'+t.status+'</span>';
+        html+='<div class="track-item" style="margin:4px 0"><div class="track-head"><span class="track-name">\uD83D\uDCCC '+t.name+'</span>'+sb+'</div>'+
+          '<div class="track-meta"><span>'+vi+' '+(t.vehicle_name||t.vehicle)+'</span><span>\uD83D\uDCC5 '+(t.start_time?new Date(t.start_time).toLocaleString():'--')+'</span><span>\u23F1 '+fD(t.duration_s)+'</span><span>\uD83D\uDCCA '+t.records+'</span></div>'+
+          '<div class="btns" style="margin-top:4px">'+
+            '<button class="btn btn-s btn-sm" onclick="openTrackMap(\''+t.id+'\')">\uD83D\uDDFA Map</button>'+
+            '<button class="btn btn-o btn-sm" onclick="exportT(\''+t.id+'\',\'csv\')">\uD83D\uDCE5 CSV</button>'+
+            '<button class="btn btn-o btn-sm" onclick="exportT(\''+t.id+'\',\'kml\')">\uD83C\uDF0D KML</button>'+
+            '<button class="btn btn-p btn-sm" onclick="exportT(\''+t.id+'\',\'geoparquet\')">\uD83C\uDF10 GeoParquet</button>'+
+          '</div></div>';
+      }
+      html+='</div></div>';
+    }
+    cont.innerHTML=html;
+  }catch(e){console.error(e);}
+}
+
+/* EXPORT: Project-level and All Projects */
+function exportProject(projName,fmt){window.open(U('/api/projects/export?project='+encodeURIComponent(projName)+'&format='+fmt),'_blank');}
+function exportAllProjects(fmt){window.open(U('/api/projects/export_all?format='+fmt),'_blank');}
+
+/* ADMIN: CLOUD */
+async function loadCloudStatus(){
+  try{var r=await api('/api/admin/cloud/status');document.getElementById('csConnected').textContent=r.configured?(r.online?'Yes (Online)':'Configured (Offline)'):'No';document.getElementById('csTotalUp').textContent=r.total_uploads||0;document.getElementById('csPending').textContent=r.pending||0;document.getElementById('csFailed').textContent=(r.stats||{}).failed||0;document.getElementById('csUnsynced').textContent=r.unsynced_tracks||0;document.getElementById('csSynced').textContent=r.synced_tracks||0;}catch(e){}
+
+/* SYNC ALL TRACKS */
+async function syncAllTracks(){
+  var prog=document.getElementById('syncProgress');
+  if(prog)prog.style.display='';
+  try{
+    var r=await api('/api/cloud/sync-all','POST',{});
+    if(prog)prog.style.display='none';
+    if(r.error){alert('Sync error: '+r.error);return;}
+    var msg='Sync complete!\n\u2713 Synced: '+r.synced+'\n\u2717 Failed: '+r.failed;
+    if(r.queued>0)msg+='\n\u23F3 Queued: '+r.queued+' (will upload when S3 is reachable)';
+    if(r.synced===0&&r.failed===0)msg='All tracks already synced!';
+    alert(msg);
+    refreshTracks();
+  }catch(e){
+    if(prog)prog.style.display='none';autoSyncOnline();
+    alert('Sync failed: '+e.message);
+  }
+}
+
+/* Auto-sync when coming back online */
+var _autoSyncTimer=null;
+function autoSyncOnline(){
+  if(_autoSyncTimer)clearTimeout(_autoSyncTimer);
+  _autoSyncTimer=setTimeout(async function(){
+    try{
+      var status=await api('/api/cloud/status');
+      if(status.configured&&status.unsynced_tracks>0){
+        console.log('[AutoSync] Online! Triggering sync of '+status.unsynced_tracks+' tracks...');
+        var r=await api('/api/cloud/sync-all','POST',{});
+        if(r.synced>0)console.log('[AutoSync] Synced '+r.synced+' tracks to S3');
+      }
+    }catch(e){console.log('[AutoSync] Error:',e);}
+  },3000);  /* Wait 3s for stable connection */
+}
+  try{var c=await api('/api/config');if(c.cloud){document.getElementById('cloudEnabled').value=c.cloud.enabled?'true':'false';document.getElementById('cloudBucket').value=c.cloud.bucket||'';document.getElementById('cloudRegion').value=c.cloud.region||'ap-south-1';document.getElementById('cloudPrefix').value=c.cloud.prefix||'terrains360/';document.getElementById('cloudAutoSync').value=c.cloud.auto_sync!==false?'true':'false';}}catch(e){}
+}
+async function saveCloudConfig(){await post('/api/admin/cloud/configure',{enabled:document.getElementById('cloudEnabled').value==='true',bucket:document.getElementById('cloudBucket').value,region:document.getElementById('cloudRegion').value,prefix:document.getElementById('cloudPrefix').value,aws_access_key:document.getElementById('cloudAK').value,aws_secret_key:document.getElementById('cloudSK').value,auto_sync:document.getElementById('cloudAutoSync').value==='true'});loadCloudStatus();}
+async function forceSync(){try{await post('/api/admin/cloud/sync',{});alert('Sync triggered');}catch(e){alert('Sync failed');}}
+
+/* SETTINGS */
+async function resetCfg(){if(!confirm('Reset all config?'))return;await post('/api/config/reset',{});location.reload();}
+async function clearSWCache(){if('caches' in window){var keys=await caches.keys();for(var i=0;i<keys.length;i++)await caches.delete(keys[i]);alert('Cache cleared');}}
+
+/* LOAD CONFIG */
+async function loadConfig(){
+  try{var c=await api('/api/config');
+    if(c.gnss){document.getElementById('gnssHost').value=c.gnss.host||'192.168.1.1';document.getElementById('gnssPort').value=c.gnss.port||1212;document.getElementById('instrH').value=c.gnss.instrument_height||0;}
+    if(c.ntrip){document.getElementById('ntripHost').value=c.ntrip.host||'';document.getElementById('ntripPort').value=c.ntrip.port||2201;document.getElementById('ntripMount').value=c.ntrip.mountpoint||'';document.getElementById('ntripUser').value=c.ntrip.username||'';document.getElementById('ntripPass').value=c.ntrip.password||'';}
+    if(c.logging){document.getElementById('logHz').value=c.logging.hz||5;document.getElementById('logFmt').value=c.logging.format||'both';document.getElementById('logPfx').value=c.logging.prefix||'TI';}
+  }catch(e){}
+}
+
+/* ONLINE/OFFLINE */
+window.addEventListener('online',function(){isOnline=true;document.getElementById('offlineBanner').classList.remove('show');if(navigator.serviceWorker&&navigator.serviceWorker.controller)navigator.serviceWorker.controller.postMessage({type:'ONLINE'});});
+window.addEventListener('offline',function(){isOnline=false;document.getElementById('offlineBanner').classList.add('show');});
+
+/* SERVICE WORKER */
+/* Service Worker disabled in Android app */
+console.log('TerraINS360 Android App v3.1');
+
+/* INIT */
+var SCAN_IPS=['http://49.207.0.104:9360','http://192.168.0.3:9360','http://192.168.1.3:9360','http://192.168.137.1:9360','http://192.168.43.1:9360','http://192.168.42.129:9360'];
+async function findServer(){
+  var st=document.getElementById('serverStatus');
+  var btn=document.getElementById('scanBtn');
+  btn.disabled=true;btn.textContent='Scanning...';
+  st.innerHTML='<span style="color:var(--yellow)">Scanning network...</span>';
+  for(var i=0;i<SCAN_IPS.length;i++){
+    st.innerHTML='<span style="color:var(--yellow)">Trying '+SCAN_IPS[i].replace(/^https?:\/\//,'')+'...</span>';
+    try{
+      var ctrl=new AbortController();var t=setTimeout(function(){ctrl.abort();},2000);
+      var r=await fetch(SCAN_IPS[i]+'/api/status',{signal:ctrl.signal});clearTimeout(t);
+      if(r.ok){
+        document.getElementById('serverUrl').value=SCAN_IPS[i];
+        BASE_URL=SCAN_IPS[i];localStorage.setItem('ti_server_url',SCAN_IPS[i]);
+        st.innerHTML='<span style="color:var(--green)">&#x2713; Found: '+SCAN_IPS[i].replace(/^https?:\/\//,'')+'</span>';
+        btn.disabled=false;btn.innerHTML='&#x1F50D; Find';return;
+      }
+    }catch(e){}
+  }
+  st.innerHTML='<span style="color:var(--red)">&#x2717; Server not found. Enter IP manually.</span>';
+  btn.disabled=false;btn.innerHTML='&#x1F50D; Find';
+}
+(async function init(){
+  var saved=localStorage.getItem('ti_server_url')||'http://ins360.terraorbit.in';
+  BASE_URL=saved;
+  document.getElementById('serverUrl').value=saved;
+  var ok=false;
+  var token=localStorage.getItem('ti_token');
+  if(token){authToken=token;try{var r=await timedFetch(U('/api/auth/me'),{headers:getHeaders()},3000);var j=await r.json();if(j.authenticated){currentUser=j.user;ok=true;}}catch(e){authToken=null;localStorage.removeItem('ti_token');}}
+  if(ok){document.getElementById('loginPage').style.transition='none';document.getElementById('loginPage').style.display='none';enterApp();var st=sessionStorage.getItem('ti_tab');if(st)goTab(st);}
+  else{if(!navigator.onLine)document.getElementById('loginOffline').style.display='';}
+})();
+</script>
+</body>
+</html>
